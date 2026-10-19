@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>মিল ট্র্যাকার - Meal Tracker | স্মার্ট মেস ও মিল খাতা</title>
+  <meta name="description" content="ব্যাচেলর মেসের মিল, বাজার খরচ ও বিলের ক্রিয়েটিভ ও মিনিমাল ডিজিটাল খাতা।">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Minimal Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-logo">MT</div>
+        <div>
+          <h1 class="brand-title">মিল ট্র্যাকার <span class="badge badge-subtle" style="font-size:0.75rem; vertical-align:middle;">Meal Tracker</span></h1>
+          <span class="brand-subtitle" id="currentMonthLabel">অক্টোবর ২০২৬ • স্মার্ট মেস ও মিল খাতা</span>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Cloud Sync Indicator / Button -->
+        <button id="cloudSyncIndicator" class="btn btn-outline btn-sm cloud-pill" title="ক্লাউড ডেটাবেজ স্ট্যাটাস">
+          <span class="status-dot offline"></span>
+          <span class="status-text">ক্লাউড সিঙ্ক</span>
+        </button>
+
+        <!-- Admin Mode Toggle Button -->
+        <button id="adminToggleBtn" class="btn btn-outline btn-admin-mode" title="এডমিন মোড অন/অফ করুন">
+          <svg class="icon-lock" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span id="adminStatusText">এডমিন লগইন</span>
+        </button>
+
+        <!-- Install PWA App Button -->
+        <button id="pwaInstallBtn" class="btn btn-outline btn-sm" style="display: none;" title="মোবাইলে ইনস্টল করুন">
+          📲 ইনস্টল করুন
+        </button>
+
+        <!-- Theme Toggle (Light / Dark) -->
+        <button id="themeToggleBtn" class="btn btn-icon" title="থিম পরিবর্তন">
+          <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+        <!-- WhatsApp Summary Button -->
+        <button id="quickWhatsAppBtn" class="btn btn-primary" title="হোয়াটসঅ্যাপ রিপোর্ট">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          <span class="desktop-only">হোয়াটসঅ্যাপ রিপোর্ট</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-bar">
+      <nav class="nav-list">
+        <button class="nav-item active" data-tab="dashboard">ড্যাশবোর্ড</button>
+        <button class="nav-item" data-tab="meals">মিল খাতা</button>
+        <button class="nav-item" data-tab="bazar">বাজার খরচ</button>
+        <button class="nav-item" data-tab="utilities">বাসা ভাড়া ও বিল</button>
+        <button class="nav-item" data-tab="settlement">হিসাব নিষ্পত্তি</button>
+        <button class="nav-item" data-tab="users">মেম্বার ম্যানেজমেন্ট</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Admin Mode Notification Bar -->
+  <div class="admin-banner" id="adminBanner" style="display: none;">
+    <div class="admin-banner-inner">
+      <span>🔐 <b>এডমিন মোড সক্রিয়:</b> আপনি নতুন মেম্বার যুক্ত, মিল আপডেট এবং বাজার এন্ট্রি করতে পারবেন।</span>
+      <button class="btn btn-sm btn-outline" id="adminLogoutBtn">লগআউট</button>
+    </div>
+  </div>
+
+  <main class="container">
+    <!-- Clean Minimal Stats (Cards) -->
+    <section class="stats-row">
+      <div class="stat-card">
+        <span class="stat-label">মোট ফান্ড জমা (Total Deposit)</span>
+        <div class="stat-value mono" id="kpiTotalDeposit">৳৪,২৭৭.০০</div>
+        <span class="stat-desc" id="kpiDepositDesc">মেম্বারদের মোট জমা টাকা</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">মোট বাজার খরচ (Spent)</span>
+        <div class="stat-value mono" id="kpiTotalBazar">৳৪,২৭৭.০০</div>
+        <span class="stat-desc" id="kpiBazarCount">১৯ টি বাজার এন্ট্রি</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">অবশিষ্ট ক্যাশ ফান্ড (Remaining Cash)</span>
+        <div class="stat-value mono" id="kpiRemainingFund">৳০.০০</div>
+        <span class="stat-desc" id="kpiFundStatus">মোট জমা - মোট বাজার</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">বর্তমান মিল রেট</span>
+        <div class="stat-value mono" id="kpiMealRate">৳৫৬.২৮</div>
+        <span class="stat-desc" id="kpiRateFormula">মোট বাজার ÷ মোট মিল (৭৬)</span>
+      </div>
+    </section>
+
+    <!-- TAB 1: DASHBOARD -->
+    <section class="tab-pane active" id="tab-dashboard">
+      <div class="pane-header">
+        <div>
+          <h2>সদস্যদের মিল ব্যালেন্স ও সামারি</h2>
+          <p class="text-muted">কে কত টাকা খাবার খরচ করেছেন এবং কে পাবেন বা দেবেন</p>
+        </div>
+        <div class="pane-actions">
+          <button class="btn btn-outline btn-sm admin-only-btn" id="openDepositModalBtn" style="display: none;">
+            + ফান্ডে জমা দিন (Deposit)
+          </button>
+          <button class="btn btn-outline btn-sm" id="printReportBtn">
+            🖨️ প্রিন্ট / PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Member Minimal Cards -->
+      <div class="members-grid" id="memberCardsGrid">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Optimal Debt Settlement Highlight -->
+      <div class="card settlement-box">
+        <div class="settlement-header">
+          <h3>💡 কার থেকে কে টাকা নেবে (সরাসরি লেনদেন)</h3>
+          <span class="badge badge-subtle">সহজ হিসাব</span>
+        </div>
+        <div id="dashboardSettlementSnippet" class="settlement-snippet">
+          হিসাব লোড হচ্ছে...
+        </div>
+      </div>
+
+      <!-- 2 Column Section -->
+      <div class="two-col-grid" style="margin-top: 24px;">
+        <div class="card">
+          <div class="card-title-row">
+            <h3>সাম্প্রতিক বাজার তালিকা</h3>
+            <button class="btn btn-ghost btn-sm" onclick="switchTab('bazar')">সব দেখুন →</button>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>তারিখ</th>
+                  <th>সদস্য</th>
+                  <th>বিবরণ</th>
+                  <th class="text-right">টাকা</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardRecentBazar"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row">
+            <h3>বাজার ব্যয়ের শতাংশ</h3>
+            <span class="badge" id="bazarTotalBadge">মোট ৳৪,২৭৭</span>
+          </div>
+          <div id="shopperProgressList" class="shopper-progress-list">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: DAILY MEALS SHEET -->
+    <section class="tab-pane" id="tab-meals">
+      <div class="pane-header">
+        <div>
+          <h2>দৈনিক মিল খাতা</h2>
+          <p class="text-muted">প্রতিদিনের সকাল, দুপুর ও রাতের মিল হিসাব (১ থেকে ৩১ অক্টোবর)</p>
+        </div>
+        <div class="pane-actions admin-only-block" id="mealAdminControls" style="display: none;">
+          <button class="btn btn-outline btn-sm" id="addAllMealsBtn">+ সবার ১ মিল</button>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="filter-bar">
+          <input type="text" id="mealFilterInput" class="input input-sm" placeholder="তারিখ খুঁজুন (যেমন: 15 October)..." style="max-width: 280px;">
+          <span class="text-muted text-sm" id="mealAdminHint">🔒 মিল পরিবর্তন করতে উপরের 'এডমিন লগইন' চাপুন।</span>
+        </div>
+
+        <div class="table-wrap meal-scroll">
+          <table class="table table-meals" id="mealsTable">
+            <thead>
+              <tr id="mealsHeadRow">
+                <th style="width: 140px;">তারিখ</th>
+                <!-- Dynamically injected member headers -->
+                <th class="text-center" style="width: 110px;">দিনের মিল</th>
+              </tr>
+            </thead>
+            <tbody id="mealsBody"></tbody>
+            <tfoot id="mealsFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: BAZAR & EXPENSES -->
+    <section class="tab-pane" id="tab-bazar">
+      <div class="pane-header">
+        <div>
+          <h2>বাজার ও প্রতিদিনের খরচ</h2>
+          <p class="text-muted">মেসের মূল ফান্ড থেকে বাজার খরচ সরাসরি বাদ দেওয়া হয়। বাজারকারীর নাম শুধুমাত্র মেসের তথ্যের জন্য।</p>
+        </div>
+        <div class="pane-actions admin-only-block" id="bazarAdminBtn" style="display: none;">
+          <button class="btn btn-primary btn-sm" id="openAddBazarBtn">+ নতুন বাজার এন্ট্রি</button>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="filter-bar">
+          <div class="filter-group">
+            <select id="bazarShopperFilter" class="input input-sm">
+              <option value="all">সকল বাজারকারী</option>
+            </select>
+            <input type="text" id="bazarSearchInput" class="input input-sm" placeholder="মালামাল খুঁজুন..." style="width: 220px;">
+          </div>
+          <div class="mono text-sm" id="bazarFilteredCount">
+            মোট: <b>৳৪,২৭৭.০০</b>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">নং</th>
+                <th style="width: 130px;">বাজারকারী</th>
+                <th>ক্রয়কৃত মালামাল</th>
+                <th class="text-right" style="width: 130px;">টাকা</th>
+                <th class="text-center admin-only-cell" style="width: 80px; display: none;">মুছুন</th>
+              </tr>
+            </thead>
+            <tbody id="bazarTableBody"></tbody>
+            <tfoot>
+              <tr>
+                <th colspan="3" class="text-right">মোট ব্যয়:</th>
+                <th class="text-right mono" id="bazarFooterTotal">৳৪,২৭৭.০০</th>
+                <th class="admin-only-cell" style="display: none;"></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: RENT & UTILITIES -->
+    <section class="tab-pane" id="tab-utilities">
+      <div class="pane-header">
+        <div>
+          <h2>বাসা ভাড়া ও ইউটিলিটি বিল</h2>
+          <p class="text-muted">ভাড়া, ওয়াইফাই, বুয়া ও অন্যান্য স্থায়ী খরচের হিসাব</p>
+        </div>
+        <div class="pane-actions admin-only-block" id="utilityAdminControls" style="display: none;">
+          <button class="btn btn-primary btn-sm" id="openAddBillBtn">+ নতুন বিল যোগ করুন</button>
+          <button class="btn btn-outline btn-sm" id="openAddSharedItemBtn">+ দ্রব্যাদি খরচ যোগ</button>
+        </div>
+      </div>
+
+      <div class="two-col-grid">
+        <div class="card">
+          <div class="card-title-row">
+            <h3>মাসিক স্থায়ী বিল</h3>
+            <span class="badge">অক্টোবর ২০২৬</span>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>খাত</th>
+                  <th class="text-right">মোট টাকা</th>
+                  <th class="text-right">মাথাপিছু</th>
+                  <th>স্ট্যাটাস</th>
+                </tr>
+              </thead>
+              <tbody id="fixedBillsBody"></tbody>
+              <tfoot>
+                <tr>
+                  <th>সর্বমোট</th>
+                  <th class="text-right mono" id="totalFixedFoot">৳১৭,৩৯০</th>
+                  <th class="text-right mono" id="avgFixedFoot">~৳৪,৪০৫.৮৩</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row">
+            <h3>সাধারণ জিনিসপত্র ও মেস সামগ্রী</h3>
+            <span class="badge" id="sharedItemsTotal">মোট: ৳৬২০</span>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>আইটেম</th>
+                  <th class="text-right">মূল্য</th>
+                  <th>কে কিনেছেন</th>
+                </tr>
+              </thead>
+              <tbody id="sharedItemsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin: 28px 0 14px 0;">সদস্যভিত্তিক বিল পরিশোধ বিবরণ</h3>
+      <div class="members-grid" id="memberUtilityGrid"></div>
+    </section>
+
+    <!-- TAB 5: SMART SETTLEMENT -->
+    <section class="tab-pane" id="tab-settlement">
+      <div class="pane-header">
+        <div>
+          <h2>হিসাব নিষ্পত্তি ও দেনা-পাওনা</h2>
+          <p class="text-muted">কার কত টাকা বাকি এবং কার কাছে পরিশোধ করতে হবে</p>
+        </div>
+        <div class="pane-actions">
+          <button class="btn btn-primary btn-sm" id="copyWhatsAppDetailedBtn">
+            📋 হোয়াটসঅ্যাপ মেসেজ কপি
+          </button>
+        </div>
+      </div>
+
+      <div class="two-col-grid">
+        <!-- Direct Transactions -->
+        <div class="card">
+          <div class="card-title-row">
+            <h3>সরাসরি লেনদেন নির্দেশিকা</h3>
+            <span class="badge badge-subtle">জিরো কনফিউশন</span>
+          </div>
+          <p class="text-muted text-sm" style="margin-bottom: 16px;">
+            কাউকে অতিরিক্ত দেওয়া বা নেওয়ার দরকার নেই, শুধু এই লেনদেনগুলো করলেই হিসাব ক্লিয়ার:
+          </p>
+          <div class="settlement-transfers-list" id="settlementTransfersList"></div>
+        </div>
+
+        <!-- WhatsApp Preview Box -->
+        <div class="card">
+          <div class="card-title-row">
+            <h3>হোয়াটসঅ্যাপ গ্রুপ রিপোর্ট প্রিভিউ</h3>
+            <span class="badge">কপি করতে প্রস্তুত</span>
+          </div>
+          <div class="code-preview-box">
+            <pre id="whatsAppTextPreview"></pre>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button class="btn btn-outline btn-sm" id="copyTextBtn">📋 টেক্সট কপি করুন</button>
+            <a href="#" target="_blank" id="openWhatsAppLink" class="btn btn-primary btn-sm">💬 সরাসরি হোয়াটসঅ্যাপ খুলুন</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Breakdown Table -->
+      <div class="card card-flush" style="margin-top: 24px;">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color);">
+          <h3>বিস্তারিত মেম্বার মিল শিট</h3>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>সদস্যের নাম</th>
+                <th class="text-center">মিল সংখ্যা</th>
+                <th class="text-right">জমা / ব্যয়</th>
+                <th class="text-right">খাবার খরচ</th>
+                <th class="text-right">মিল ব্যালেন্স</th>
+                <th class="text-center">স্ট্যাটাস</th>
+              </tr>
+            </thead>
+            <tbody id="settlementDetailBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: USER & MEMBER MANAGEMENT (Admin enabled) -->
+    <section class="tab-pane" id="tab-users">
+      <div class="pane-header">
+        <div>
+          <h2>মেম্বার ও ইউজার ম্যানেজমেন্ট</h2>
+          <p class="text-muted">মেসের নতুন সদস্য যোগ করুন বা অপ্রয়োজনীয় সদস্য ডিলিট করুন</p>
+        </div>
+      </div>
+
+      <div class="two-col-grid">
+        <!-- Add New User Card -->
+        <div class="card">
+          <div class="card-title-row">
+            <h3>+ নতুন সদস্য যোগ করুন</h3>
+            <span class="badge badge-admin">এডমিন ফিচার</span>
+          </div>
+          <form id="addUserForm" style="margin-top: 14px;">
+            <div class="form-field">
+              <label for="newMemberName">সদস্যের পুরো নাম *</label>
+              <input type="text" id="newMemberName" class="input" placeholder="যেমন: Arif বা Shakil" required>
+            </div>
+            <div style="margin-top: 16px;">
+              <button type="submit" class="btn btn-primary" id="saveMemberBtn">
+                + মেম্বার যোগ করুন
+              </button>
+            </div>
+          </form>
+          <div style="margin-top: 16px;" class="admin-notice-box" id="userAddLockNotice">
+            🔒 সদস্য যোগ বা ডিলিট করতে এডমিন মোডে লগইন করুন (ডিফল্ট পিন: <b>1234</b>)।
+          </div>
+        </div>
+
+        <!-- Current Members List with Delete Option -->
+        <div class="card">
+          <div class="card-title-row">
+            <h3>বর্তমান সক্রিয় সদস্যবৃন্দ (<span id="userCountBadge">৪</span> জন)</h3>
+          </div>
+          <div class="user-management-list" id="userManagementList">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Backup and Reset Section -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-title-row">
+          <h3>ডেটা ব্যাকআপ ও রিসেট</h3>
+        </div>
+        <p class="text-muted text-sm" style="margin-bottom: 16px;">
+          আপনার মেসের ডেটা ব্রাউজারে স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকে। প্রয়োজনে ব্যাকআপ নামাতে পারেন বা আসল গুগল শিটের ডাটায় ফিরিয়ে নিতে পারেন।
+        </p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" id="exportJsonBtn">📥 JSON ব্যাকআপ</button>
+          <button class="btn btn-outline btn-sm" id="exportCsvBtn">📊 এক্সেল CSV এক্সপোর্ট</button>
+          <button class="btn btn-danger btn-sm" id="resetDataBtn">🔄 মূল গুগল শিটের ডাটায় রিসেট</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Admin Login -->
+  <div class="modal" id="adminLoginModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>🔐 এডমিন মোড লগইন</h3>
+        <button class="modal-close-btn" id="closeAdminModalBtn">&times;</button>
+      </div>
+      <form id="adminLoginForm">
+        <div class="modal-body">
+          <p class="text-muted text-sm">মেসে নতুন এন্ট্রি বা এডিট করার জন্য এডমিন পাসকোড দিন। (ডিফল্ট পিন: <b>1234</b>)</p>
+          <div class="form-field" style="margin-top: 14px;">
+            <label for="adminPinInput">পাসকোড / পিন:</label>
+            <input type="password" id="adminPinInput" class="input mono" placeholder="1234" autofocus required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelAdminModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">লগইন করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Bazar -->
+  <div class="modal" id="bazarModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>নতুন বাজার খরচ যোগ করুন</h3>
+        <button class="modal-close-btn" id="closeBazarModalBtn">&times;</button>
+      </div>
+      <form id="bazarForm">
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="modalShopperSelect">বাজারকারী মেম্বার *</label>
+            <select id="modalShopperSelect" class="input" required></select>
+          </div>
+          <div class="form-field">
+            <label for="modalItemInput">ক্রয়কৃত মালামাল ও বিবরণ *</label>
+            <input type="text" id="modalItemInput" class="input" placeholder="যেমন: মুরগি ৩২০, চাল ৫০..." required>
+          </div>
+          <div class="form-field">
+            <label for="modalAmountInput">মোট খরচ (টাকা) *</label>
+            <input type="number" id="modalAmountInput" class="input mono" placeholder="যেমন: 350" min="1" step="any" required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelBazarModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Deposit -->
+  <div class="modal" id="depositModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>মেস ফান্ডে টাকা জমা (Member Deposit)</h3>
+        <button class="modal-close-btn" id="closeDepositModalBtn">&times;</button>
+      </div>
+      <form id="depositForm">
+        <div class="modal-body">
+          <p class="text-muted text-sm">সদস্যের জমা দেওয়া টাকা মেসের মূল ফান্ডে যুক্ত হবে এবং সেখান থেকেই বাজার খরচ বিয়োগ হবে।</p>
+          <div class="form-field" style="margin-top: 12px;">
+            <label for="depositMemberSelect">সদস্য নির্বাচন করুন *</label>
+            <select id="depositMemberSelect" class="input" required></select>
+          </div>
+          <div class="form-field">
+            <label for="depositAmountInput">জমার পরিমাণ (টাকা) *</label>
+            <input type="number" id="depositAmountInput" class="input mono" placeholder="যেমন: 1500" min="1" step="any" required>
+          </div>
+          <div class="form-field">
+            <label for="depositTypeSelect">অ্যাকশন</label>
+            <select id="depositTypeSelect" class="input">
+              <option value="add">বর্তমান জমার সাথে যোগ করুন (+)</option>
+              <option value="set">সরাসরি নতুন মোট জমা নির্ধারণ করুন (=)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelDepositModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Fixed Bill -->
+  <div class="modal" id="billModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="billModalHeading">নতুন বিল এন্ট্রি (Rent / Utility)</h3>
+        <button class="modal-close-btn" id="closeBillModalBtn">&times;</button>
+      </div>
+      <form id="billForm">
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="billTitleInput">খাত বা বিলের নাম *</label>
+            <input type="text" id="billTitleInput" class="input" placeholder="যেমন: বাসা ভাড়া, বিদ্যুৎ বিল, ওয়াইফাই..." required>
+          </div>
+          <div class="form-field">
+            <label for="billAmountInput">মোট টাকার পরিমাণ *</label>
+            <input type="number" id="billAmountInput" class="input mono" placeholder="যেমন: 16000" min="1" step="any" required>
+          </div>
+          <div class="form-field">
+            <label for="billSplitCount">কত জনের মধ্যে ভাগ হবে? *</label>
+            <input type="number" id="billSplitCount" class="input mono" min="1" max="50" value="4" required>
+          </div>
+          <div class="form-field">
+            <label for="billStatusSelect">পরিশোধের অবস্থা</label>
+            <select id="billStatusSelect" class="input">
+              <option value="Paid">পরিশোধিত (Paid)</option>
+              <option value="Due">বকেয়া (Due)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="billNoteInput">সংক্ষিপ্ত বিবরণ বা নোট</label>
+            <input type="text" id="billNoteInput" class="input" placeholder="যেমন: ৪ জনের সমান ভাগ, বা বুয়া বিল ৩ জনের">
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelBillModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Shared Supply Item -->
+  <div class="modal" id="sharedItemModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>মেস সামগ্রী ও অন্যান্য খরচ এন্ট্রি</h3>
+        <button class="modal-close-btn" id="closeSharedItemModalBtn">&times;</button>
+      </div>
+      <form id="sharedItemForm">
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="sharedItemNameInput">জিনিসপত্রের নাম *</label>
+            <input type="text" id="sharedItemNameInput" class="input" placeholder="যেমন: হারপিক + হ্যান্ডওয়াশ, টুল, লাইট..." required>
+          </div>
+          <div class="form-field">
+            <label for="sharedItemPriceInput">মূল্য (টাকা) *</label>
+            <input type="number" id="sharedItemPriceInput" class="input mono" placeholder="যেমন: 270" min="1" step="any" required>
+          </div>
+          <div class="form-field">
+            <label for="sharedItemBuyerSelect">কে কিনেছেন? *</label>
+            <select id="sharedItemBuyerSelect" class="input" required></select>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelSharedItemModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Firebase Cloud Config -->
+  <div class="modal" id="firebaseModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>☁️ ফায়ারবেস ক্লাউড ডেটাবেজ সেটআপ</h3>
+        <button class="modal-close-btn" id="closeFirebaseModalBtn">&times;</button>
+      </div>
+      <form id="firebaseForm">
+        <div class="modal-body">
+          <p class="text-muted text-sm">
+            সবার ফোনে একই ডেটা লাইভ সিঙ্ক থাকার জন্য <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent);">console.firebase.google.com</a> থেকে ফ্রি প্রজেক্ট তৈরি করে Firestore Config এখানে পেস্ট করুন।
+          </p>
+          <div class="form-field" style="margin-top: 12px;">
+            <label for="fbProjectIdInput">Project ID *</label>
+            <input type="text" id="fbProjectIdInput" class="input mono" placeholder="যেমন: our-mess-tracker-123" required>
+          </div>
+          <div class="form-field">
+            <label for="fbApiKeyInput">API Key *</label>
+            <input type="text" id="fbApiKeyInput" class="input mono" placeholder="AIzaSy..." required>
+          </div>
+          <div class="form-field">
+            <label for="fbAppIdInput">App ID *</label>
+            <input type="text" id="fbAppIdInput" class="input mono" placeholder="1:123456:web:abcd..." required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelFirebaseModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">সেভ ও কানেক্ট করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Minimal Toast -->
+  <div class="toast" id="toast"></div>
+
+  <footer class="footer">
+    <p>মিল ট্র্যাকার (Meal Tracker) • স্মার্ট মেস ও মিল খাতা</p>
+  </footer>
+
+  <!-- Firebase Compat Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="firebase.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
