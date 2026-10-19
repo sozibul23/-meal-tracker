@@ -884,7 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderAll();
       showToast('স্বাগতম! এডমিন মোড সক্রিয় হয়েছে।');
     } else {
-      alert('ভুল পিন কোড! ডিফল্ট পিন হলো: 1234');
+      alert('ভুল পিন কোড! সঠিক পিন দিয়ে চেষ্টা করুন।');
     }
   });
 
