@@ -1174,21 +1174,21 @@ body {
    ========================================================================== */
 .floating-dock {
   position: fixed;
-  bottom: 18px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 990;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(18, 22, 31, 0.92);
+  gap: 3px;
+  background: rgba(18, 22, 31, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-pill);
-  padding: 6px 14px;
+  padding: 4px 8px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
-  max-width: 92vw;
+  max-width: 96vw;
   box-sizing: border-box;
 }
 
@@ -1199,13 +1199,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 6px 10px;
+  gap: 2px;
+  padding: 4px 6px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
+  min-width: 44px;
 }
 
 .dock-btn svg {

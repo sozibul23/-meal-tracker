@@ -364,6 +364,11 @@ function renderKPIs(metrics) {
 
   document.getElementById('kpiMealRate').textContent = `৳${metrics.mealRate.toFixed(2)}`;
   document.getElementById('kpiRateFormula').textContent = `মোট ব্যয় ÷ ${metrics.totalMeals} মিল`;
+  
+  const billBanner = document.getElementById('kpiFixedBillsBannerText');
+  if (billBanner) {
+    billBanner.textContent = `মোট ${formatBDT(metrics.totalFixed)} →`;
+  }
 }
 
 // Render Dashboard
