@@ -192,6 +192,7 @@
                   <th>সদস্য</th>
                   <th>বিবরণ</th>
                   <th class="text-right">টাকা</th>
+                  <th class="text-center admin-only-cell" style="width: 85px; display: none;">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody id="dashboardRecentBazar"></tbody>
@@ -234,7 +235,7 @@
                 <th>সদস্যের নাম</th>
                 <th class="text-right">টাকার পরিমাণ</th>
                 <th>মাধ্যম / বিবরণ</th>
-                <th class="text-center admin-only-cell" style="width: 100px; display: none;">মুছে ফেলুন</th>
+                <th class="text-center admin-only-cell" style="width: 85px; display: none;">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody id="depositHistoryTableBody">
@@ -313,7 +314,7 @@
                 <th style="width: 130px;">বাজারকারী</th>
                 <th>ক্রয়কৃত মালামাল</th>
                 <th class="text-right" style="width: 130px;">টাকা</th>
-                <th class="text-center admin-only-cell" style="width: 80px; display: none;">মুছুন</th>
+                <th class="text-center admin-only-cell" style="width: 85px; display: none;">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody id="bazarTableBody"></tbody>
@@ -590,6 +591,79 @@
         <div class="modal-foot">
           <button type="button" class="btn btn-outline btn-sm" id="cancelAdminModalBtn">বাতিল</button>
           <button type="submit" class="btn btn-primary btn-sm">লগইন করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  
+  <!-- Modal: Edit Bazar -->
+  <div class="modal" id="editBazarModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>✏️ বাজার খরচ এডিট করুন</h3>
+        <button class="modal-close-btn" id="closeEditBazarModalBtn">&times;</button>
+      </div>
+      <form id="editBazarForm">
+        <input type="hidden" id="editBazarId">
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="editBazarShopperSelect">বাজারকারী মেম্বার *</label>
+            <select id="editBazarShopperSelect" class="input" required></select>
+          </div>
+          <div class="form-field">
+            <label for="editBazarDateInput">তারিখ *</label>
+            <input type="text" id="editBazarDateInput" class="input" placeholder="যেমন: 19 October" required>
+          </div>
+          <div class="form-field">
+            <label for="editBazarItemInput">ক্রয়কৃত মালামাল ও বিবরণ *</label>
+            <input type="text" id="editBazarItemInput" class="input" placeholder="যেমন: তেল, মুরগি, ডিম..." required>
+          </div>
+          <div class="form-field">
+            <label for="editBazarAmountInput">মোট খরচ (টাকা) *</label>
+            <input type="number" id="editBazarAmountInput" class="input mono" placeholder="যেমন: 275" min="1" step="any" required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelEditBazarModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Deposit -->
+  <div class="modal" id="editDepositModal">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-head">
+        <h3>✏️ ফান্ড জমা এন্ট্রি এডিট করুন</h3>
+        <button class="modal-close-btn" id="closeEditDepositModalBtn">&times;</button>
+      </div>
+      <form id="editDepositForm">
+        <input type="hidden" id="editDepositId">
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="editDepositMemberSelect">সদস্য নির্বাচন করুন *</label>
+            <select id="editDepositMemberSelect" class="input" required></select>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="editDepositAmountInput">টাকার পরিমাণ *</label>
+              <input type="number" id="editDepositAmountInput" class="input mono" placeholder="যেমন: ১৫০০" min="1" step="any" required>
+            </div>
+            <div class="form-field">
+              <label for="editDepositDateInput">জমা দেওয়ার তারিখ *</label>
+              <input type="text" id="editDepositDateInput" class="input" placeholder="যেমন: ১৯ অক্টোবর" required>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="editDepositNoteInput">নোট বা বিবরণ (ঐচ্ছিক)</label>
+            <input type="text" id="editDepositNoteInput" class="input" placeholder="যেমন: বিকাশ বা নগদ জমা">
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelEditDepositModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">আপডেট করুন</button>
         </div>
       </form>
     </div>

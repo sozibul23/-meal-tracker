@@ -415,6 +415,12 @@ function renderDashboard(metrics) {
       <td><b>${b.shopper}</b></td>
       <td>${b.item}</td>
       <td class="text-right mono"><b>৳${b.amount}</b></td>
+      <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
+        <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+          <button class="btn-action-edit" onclick="openEditBazarModal(${b.id})" title="এডিট করুন">✏️</button>
+          <button class="btn-action-delete" onclick="deleteBazar(${b.id})" title="মুছে ফেলুন">🗑️</button>
+        </div>
+      </td>
     </tr>
   `).join('');
 
@@ -563,22 +569,69 @@ function renderBazarTable() {
       <td><b>${b.shopper}</b></td>
       <td>${b.item} <span class="text-dim text-sm">(${b.date || 'October'})</span></td>
       <td class="text-right mono"><b>${formatBDT(b.amount)}</b></td>
-      ${isAdmin ? `
-        <td class="text-center">
-          <button class="btn btn-sm btn-danger" onclick="deleteBazar(${b.id})" title="মুছুন">✕</button>
-        </td>
-      ` : ''}
+      <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
+        <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+          <button class="btn-action-edit" onclick="openEditBazarModal(${b.id})" title="এডিট করুন">✏️</button>
+          <button class="btn-action-delete" onclick="deleteBazar(${b.id})" title="মুছে ফেলুন">🗑️</button>
+        </div>
+      </td>
     </tr>
   `).join('');
 }
 
 window.deleteBazar = function(id) {
   if (!isAdmin) return;
-  if (confirm('আপনি কি এই বাজার এন্ট্রিটি মুছে ফেলতে চান?')) {
-    state.bazar = state.bazar.filter(b => b.id !== id);
+  const item = state.bazar.find(b => String(b.id) === String(id));
+  const desc = item ? `"${item.item}" (${formatBDT(item.amount)})` : 'এই বাজার এন্ট্রিটি';
+  if (confirm(`আপনি কি নিশ্চিতভাবে ${desc} মুছে ফেলতে চান?`)) {
+    state.bazar = state.bazar.filter(b => String(b.id) !== String(id));
     saveState();
-    showToast('বাজার এন্ট্রি ডিলিট করা হয়েছে');
+    renderAll();
+    showToast('বাজার এন্ট্রি সফলভাবে মুছে ফেলা হয়েছে');
   }
+};
+
+window.openEditBazarModal = function(id) {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন এডিট করতে পারবেন');
+    return;
+  }
+  const item = state.bazar.find(b => String(b.id) === String(id));
+  if (!item) {
+    showToast('বাজার খরচ পাওয়া যায়নি');
+    return;
+  }
+  document.getElementById('editBazarId').value = item.id;
+  const shopperSelect = document.getElementById('editBazarShopperSelect');
+  shopperSelect.innerHTML = state.members.map(m => `<option value="${m}" ${m === item.shopper ? 'selected' : ''}>${m}</option>`).join('');
+  document.getElementById('editBazarDateInput').value = item.date || '';
+  document.getElementById('editBazarItemInput').value = item.item || '';
+  document.getElementById('editBazarAmountInput').value = item.amount || '';
+
+  const modal = document.getElementById('editBazarModal');
+  if (modal) modal.classList.add('open');
+};
+
+window.openEditDepositModal = function(id) {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন এডিট করতে পারবেন');
+    return;
+  }
+  ensureDepositHistory(state);
+  const entry = state.depositHistory.find(d => String(d.id) === String(id));
+  if (!entry) {
+    showToast('জমা এন্ট্রি পাওয়া যায়নি');
+    return;
+  }
+  document.getElementById('editDepositId').value = entry.id;
+  const memberSelect = document.getElementById('editDepositMemberSelect');
+  memberSelect.innerHTML = state.members.map(m => `<option value="${m}" ${m === entry.member ? 'selected' : ''}>${m}</option>`).join('');
+  document.getElementById('editDepositAmountInput').value = entry.amount || '';
+  document.getElementById('editDepositDateInput').value = entry.date || '';
+  document.getElementById('editDepositNoteInput').value = entry.note || '';
+
+  const modal = document.getElementById('editDepositModal');
+  if (modal) modal.classList.add('open');
 };
 
 // Render Utilities
@@ -1079,15 +1132,12 @@ function renderDepositHistoryTable() {
         <td><span class="badge badge-subtle">${d.member}</span></td>
         <td class="text-right mono text-success"><b>+ ${formatBDT(d.amount)}</b></td>
         <td><span class="text-muted text-sm">${d.note || '-'}</span></td>
-        ${isAdmin ? `
-          <td class="text-center admin-only-cell">
-            <button class="btn btn-ghost btn-sm text-danger" style="padding: 3px 8px; font-size: 0.85rem;" onclick="deleteDepositEntry('${d.id}')" title="এন্ট্রি মুছুন">
-              🗑️ ডিলিট
-            </button>
-          </td>
-        ` : `
-          <td class="admin-only-cell" style="display: none;"></td>
-        `}
+        <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
+          <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+            <button class="btn-action-edit" onclick="openEditDepositModal('${d.id}')" title="এডিট করুন">✏️</button>
+            <button class="btn-action-delete" onclick="deleteDepositEntry('${d.id}')" title="মুছে ফেলুন">🗑️</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join('');
@@ -1220,6 +1270,86 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('openAddBazarBtn').addEventListener('click', openBazarModal);
   document.getElementById('closeBazarModalBtn').addEventListener('click', closeBazarModal);
   document.getElementById('cancelBazarModalBtn').addEventListener('click', closeBazarModal);
+
+  
+  // Edit Bazar Modal Listeners
+  const editBazarModal = document.getElementById('editBazarModal');
+  const closeEditBazarModal = () => { if (editBazarModal) editBazarModal.classList.remove('open'); };
+  const closeEditBazarBtn = document.getElementById('closeEditBazarModalBtn');
+  const cancelEditBazarBtn = document.getElementById('cancelEditBazarModalBtn');
+  if (closeEditBazarBtn) closeEditBazarBtn.addEventListener('click', closeEditBazarModal);
+  if (cancelEditBazarBtn) cancelEditBazarBtn.addEventListener('click', closeEditBazarModal);
+
+  const editBazarForm = document.getElementById('editBazarForm');
+  if (editBazarForm) {
+    editBazarForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!isAdmin) return;
+      const id = document.getElementById('editBazarId').value;
+      const shopper = document.getElementById('editBazarShopperSelect').value;
+      const date = document.getElementById('editBazarDateInput').value.trim();
+      const item = document.getElementById('editBazarItemInput').value.trim();
+      const amount = Number(document.getElementById('editBazarAmountInput').value);
+
+      if (!item || isNaN(amount) || amount <= 0) {
+        showToast('সঠিক খরচ ও বিবরণ দিন');
+        return;
+      }
+
+      const idx = state.bazar.findIndex(b => String(b.id) === String(id));
+      if (idx !== -1) {
+        state.bazar[idx].shopper = shopper;
+        state.bazar[idx].date = date;
+        state.bazar[idx].item = item;
+        state.bazar[idx].amount = amount;
+        saveState();
+        closeEditBazarModal();
+        renderAll();
+        showToast('বাজার খরচ সফলভাবে আপডেট করা হয়েছে!');
+      }
+    });
+  }
+
+  // Edit Deposit Modal Listeners
+  const editDepositModal = document.getElementById('editDepositModal');
+  const closeEditDepositModal = () => { if (editDepositModal) editDepositModal.classList.remove('open'); };
+  const closeEditDepositBtn = document.getElementById('closeEditDepositModalBtn');
+  const cancelEditDepositBtn = document.getElementById('cancelEditDepositModalBtn');
+  if (closeEditDepositBtn) closeEditDepositBtn.addEventListener('click', closeEditDepositModal);
+  if (cancelEditDepositBtn) cancelEditDepositBtn.addEventListener('click', closeEditDepositModal);
+
+  const editDepositForm = document.getElementById('editDepositForm');
+  if (editDepositForm) {
+    editDepositForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!isAdmin) return;
+      const id = document.getElementById('editDepositId').value;
+      const member = document.getElementById('editDepositMemberSelect').value;
+      const amount = Number(document.getElementById('editDepositAmountInput').value);
+      const date = document.getElementById('editDepositDateInput').value.trim();
+      const note = document.getElementById('editDepositNoteInput').value.trim();
+
+      if (!member || isNaN(amount) || amount <= 0) {
+        showToast('সঠিক জমার পরিমাণ দিন');
+        return;
+      }
+
+      ensureDepositHistory(state);
+      const idx = state.depositHistory.findIndex(d => String(d.id) === String(id));
+      if (idx !== -1) {
+        state.depositHistory[idx].member = member;
+        state.depositHistory[idx].amount = amount;
+        state.depositHistory[idx].date = date;
+        state.depositHistory[idx].note = note;
+
+        recalculateDepositsFromHistory();
+        saveState();
+        closeEditDepositModal();
+        renderAll();
+        showToast('ফান্ড জমা এন্ট্রি সফলভাবে আপডেট করা হয়েছে!');
+      }
+    });
+  }
 
   document.getElementById('bazarForm').addEventListener('submit', (e) => {
     e.preventDefault();

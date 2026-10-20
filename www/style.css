@@ -1373,3 +1373,29 @@ body {
     padding-bottom: 100px;
   }
 }
+
+/* Table Action Buttons (Admin Edit & Delete) */
+.btn-action-edit, .btn-action-delete {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 4px 7px;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+}
+.btn-action-edit:hover, .btn-action-edit:active {
+  background: rgba(212, 249, 56, 0.18);
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+.btn-action-delete:hover, .btn-action-delete:active {
+  background: rgba(255, 75, 75, 0.18);
+  border-color: #ff4b4b;
+  transform: scale(1.08);
+}
