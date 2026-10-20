@@ -1130,7 +1130,7 @@ function showToast(msg) {
 // Setup Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Theme Toggle
-  const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
 
   document.getElementById('themeToggleBtn').addEventListener('click', () => {
