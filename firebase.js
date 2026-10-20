@@ -1,6 +1,7 @@
 /**
  * Firebase Realtime Cloud Synchronization
  * Connects Meal Tracker with Firebase Firestore
+ * Supports Multi-Month Archives & Realtime Switching
  */
 
 // Your Firebase Config
@@ -14,11 +15,14 @@ const DEFAULT_FIREBASE_CONFIG = {
 };
 
 const FIREBASE_CONFIG_STORAGE_KEY = 'MESS_FIREBASE_CONFIG';
-const FIRESTORE_DOC_PATH = 'mess_data/october_2026';
 
 let db = null;
 let isCloudConnected = false;
 let isSyncingFromRemote = false;
+let activeDocUnsubscribe = null;
+let activeMetaUnsubscribe = null;
+let activeMonthDocId = '2026-10';
+let remoteStateChangeCallback = null;
 
 function getStoredFirebaseConfig() {
   try {
@@ -44,13 +48,21 @@ function saveFirebaseConfig(config) {
   }
 }
 
-function initFirebase(onRemoteChange) {
-  const config = getStoredFirebaseConfig();
+function getFirestoreDocPath(monthId) {
+  // Preserve existing document for October 2026
+  if (monthId === '2026-10' || monthId === 'october_2026') {
+    return 'mess_data/october_2026';
+  }
+  return `mess_data/${monthId}`;
+}
 
-  // Check if user has provided real credentials
+function initFirebase(onRemoteChange, onMetaChange) {
+  const config = getStoredFirebaseConfig();
+  remoteStateChangeCallback = onRemoteChange;
+
   if (!config.projectId || config.projectId === 'YOUR_PROJECT_ID') {
     console.log('Firebase not configured yet. Operating in LocalStorage mode.');
-    updateSyncIndicator(false, 'লোকাল মোড (ক্লাউড সেটআপ করুন)');
+    updateSyncIndicator(false, 'লোকাল মোড (ক্লাউড ডিসকানেক্টেড)');
     return;
   }
 
@@ -68,45 +80,83 @@ function initFirebase(onRemoteChange) {
     isCloudConnected = true;
     updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
 
-    // Realtime Listener
-    db.doc(FIRESTORE_DOC_PATH).onSnapshot((doc) => {
+    // Listen to current active month
+    listenToMonth(activeMonthDocId, onRemoteChange);
+
+    // Listen to months list metadata
+    activeMetaUnsubscribe = db.doc('mess_meta/months').onSnapshot((doc) => {
       if (doc.exists) {
-        const cloudData = doc.data();
-        if (cloudData && onRemoteChange) {
-          isSyncingFromRemote = true;
-          onRemoteChange(cloudData);
-          isSyncingFromRemote = false;
-          updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
+        const meta = doc.data();
+        if (meta && Array.isArray(meta.list) && onMetaChange) {
+          onMetaChange(meta.list);
         }
       } else {
-        console.log('No document in Firestore yet. Pushing local state...');
-        if (typeof state !== 'undefined') {
-          pushStateToFirebase(state);
+        if (typeof allMonths !== 'undefined') {
+          syncMonthsMetaToCloud(allMonths);
         }
       }
-    }, (error) => {
-      console.error('Firestore listener error:', error);
-      updateSyncIndicator(false, 'সিঙ্ক ত্রুটি (চেক করুন)');
+    }, (err) => {
+      console.warn('Meta listener error', err);
     });
 
   } catch (e) {
     console.error('Firebase initialization error', e);
-    updateSyncIndicator(false, 'কানেকশন ফেইল্ড');
+    updateSyncIndicator(false, 'ফায়ারবেস সংযোগ ব্যর্থ');
   }
+}
+
+function listenToMonth(monthId, onRemoteChange) {
+  activeMonthDocId = monthId || '2026-10';
+  if (onRemoteChange) remoteStateChangeCallback = onRemoteChange;
+  if (!db || !isCloudConnected) return;
+
+  if (activeDocUnsubscribe) {
+    activeDocUnsubscribe();
+    activeDocUnsubscribe = null;
+  }
+
+  const docPath = getFirestoreDocPath(activeMonthDocId);
+
+  activeDocUnsubscribe = db.doc(docPath).onSnapshot((doc) => {
+    if (doc.exists) {
+      const cloudData = doc.data();
+      if (cloudData && remoteStateChangeCallback) {
+        isSyncingFromRemote = true;
+        remoteStateChangeCallback(cloudData);
+        isSyncingFromRemote = false;
+        updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
+      }
+    } else {
+      console.log(`No document for ${docPath} in Firestore yet. Pushing local state...`);
+      if (typeof state !== 'undefined') {
+        pushStateToFirebase(state);
+      }
+    }
+  }, (error) => {
+    console.error('Firestore listener error:', error);
+    updateSyncIndicator(false, 'সিঙ্ক ত্রুটি (অফলাইন)');
+  });
 }
 
 // Push local changes to Firestore
 function pushStateToFirebase(currentState) {
   if (!db || !isCloudConnected || isSyncingFromRemote) return;
 
-  db.doc(FIRESTORE_DOC_PATH).set(currentState, { merge: true })
+  const docPath = getFirestoreDocPath(activeMonthDocId);
+  db.doc(docPath).set(currentState, { merge: true })
     .then(() => {
       updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
     })
     .catch((err) => {
       console.error('Error uploading to Firestore:', err);
-      updateSyncIndicator(false, 'অফলাইন মোড');
+      updateSyncIndicator(false, 'আপলোডে সমস্যা');
     });
+}
+
+function syncMonthsMetaToCloud(monthsList) {
+  if (!db || !isCloudConnected || !Array.isArray(monthsList)) return;
+  db.doc('mess_meta/months').set({ list: monthsList }, { merge: true })
+    .catch(err => console.warn('Could not sync months metadata', err));
 }
 
 function updateSyncIndicator(isOnline, text) {

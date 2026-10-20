@@ -96,6 +96,25 @@
   </div>
 
   <main class="container">
+
+    <!-- Month Switcher & Controls Bar -->
+    <div class="month-control-bar">
+      <div class="month-picker">
+        <button id="prevMonthBtn" class="month-arrow-btn" title="পূর্ববর্তী মাস">‹</button>
+        <div class="month-select-wrapper">
+          <span class="cal-icon">📅</span>
+          <select id="monthSelectDropdown" class="month-select"></select>
+        </div>
+        <button id="nextMonthBtn" class="month-arrow-btn" title="পরবর্তী মাস">›</button>
+      </div>
+      
+      <div class="month-actions">
+        <button id="openNewMonthModalBtn" class="btn btn-outline btn-sm admin-only-btn" style="display: none;" title="নতুন মাসের খাতা খুলুন">
+          <span>+ নতুন মাস শুরু করুন</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Clean Minimal Stats (Cards) -->
     
 
@@ -465,6 +484,57 @@
         </div>
       </div>
     </section>
+  
+  <!-- Modal: Start New Month -->
+  <div class="modal" id="newMonthModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>📅 নতুন মাস শুরু করুন</h3>
+        <button class="modal-close-btn" id="closeNewMonthModalBtn">&times;</button>
+      </div>
+      <form id="newMonthForm">
+        <div class="modal-body">
+          <p class="text-muted text-sm">নতুন মাস শুরু করলে আগের সব মাসের হিসাব সুরক্ষিতভাবে সংরক্ষিত থাকবে। নতুন মাসের মিল ও বাজার খাতা ফ্রেশ (০ থেকে) শুরু হবে।</p>
+          
+          <div class="form-row" style="margin-top: 14px;">
+            <div class="form-field">
+              <label for="newMonthSelect">মাস:</label>
+              <select id="newMonthSelect" class="input" required>
+                <option value="1">জানুয়ারি (January)</option>
+                <option value="2">ফেব্রুয়ারি (February)</option>
+                <option value="3">মার্চ (March)</option>
+                <option value="4">এপ্রিল (April)</option>
+                <option value="5">মে (May)</option>
+                <option value="6">জুন (June)</option>
+                <option value="7">জুলাই (July)</option>
+                <option value="8">আগস্ট (August)</option>
+                <option value="9">সেপ্টেম্বর (September)</option>
+                <option value="10">অক্টোবর (October)</option>
+                <option value="11" selected>নভেম্বর (November)</option>
+                <option value="12">ডিসেম্বর (December)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="newYearInput">বছর:</label>
+              <input type="number" id="newYearInput" class="input mono" value="2026" min="2024" max="2035" required>
+            </div>
+          </div>
+
+          <div class="form-field" style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="carryOverMembersCheckbox" checked>
+              <span>বর্তমান মেম্বারদের তালিকা নিয়ে যান (<span id="carryMembersNames" style="font-weight:600;">Sadhin, Tanzid, Akhirul, Imam</span>)</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelNewMonthModalBtn">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">নতুন মাস তৈরি করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   </main>
 
   <!-- Modal: Admin Login -->
