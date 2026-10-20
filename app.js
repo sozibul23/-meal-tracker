@@ -771,6 +771,8 @@ function updateAdminUI() {
   const bazarAdminBtn = document.getElementById('bazarAdminBtn');
   const utilityAdminControls = document.getElementById('utilityAdminControls');
   const mealAdminHint = document.getElementById('mealAdminHint');
+  const cloudIndicator = document.getElementById('cloudSyncIndicator');
+  if (cloudIndicator) cloudIndicator.style.display = isAdmin ? 'inline-flex' : 'none';
 
   if (isAdmin) {
     banner.style.display = 'block';
@@ -1200,6 +1202,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Firebase Config Modal
   const firebaseModal = document.getElementById('firebaseModal');
   const openFirebaseModal = () => {
+    if (!isAdmin) {
+      showToast('ফায়ারবেস ক্লাউড সেটিং শুধুমাত্র এডমিনের জন্য সংরক্ষিত');
+      return;
+    }
     if (typeof getStoredFirebaseConfig === 'function') {
       const config = getStoredFirebaseConfig();
       document.getElementById('fbProjectIdInput').value = config.projectId === 'YOUR_PROJECT_ID' ? '' : config.projectId || '';
