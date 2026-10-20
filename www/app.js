@@ -1,3 +1,30 @@
+
+function copyTextToClipboard(text, successMessage) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMessage || '📋 ক্লিপবোর্ডে কপি হয়েছে!');
+    }).catch(() => fallbackCopy(text, successMessage));
+  } else {
+    fallbackCopy(text, successMessage);
+  }
+}
+
+function fallbackCopy(text, successMessage) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast(successMessage || '📋 ক্লিপবোর্ডে কপি হয়েছে!');
+  } catch (e) {
+    showToast('কপি করতে সমস্যা হয়েছে');
+  }
+  document.body.removeChild(ta);
+}
+
 /**
  * Mess Manager Application Logic
  * Minimalist Design + Admin Mode + User Management (Add / Delete)
@@ -787,200 +814,276 @@ window.openEditDepositModal = function(id) {
 
 // Render Utilities
 function renderUtilities(metrics) {
-  const tbody = document.getElementById('fixedBillsBody');
-  tbody.innerHTML = state.fixedBills.map(b => {
-    const avg = b.amount / (b.splitCount || state.members.length);
-    const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
-    const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
+  if (!state.fixedBills) state.fixedBills = [];
+  if (!state.memberBillStatus) state.memberBillStatus = {};
 
-    return `
-      <tr>
-        <td>
-          <b>${b.title}</b>
-          ${b.note ? `<br><span class="text-muted text-sm">${b.note}</span>` : ''}
-        </td>
-        <td class="text-right mono">৳${Number(b.amount).toLocaleString()}</td>
-        <td class="text-right mono">৳${avg.toFixed(2)}</td>
-        <td>
-          ${isAdmin ? `
-            <button class="badge ${statusClass}" onclick="toggleBillStatus(${b.id})" style="cursor:pointer; border:none;" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
-              ${statusText} ⟳
+  // 1. Calculate Per-Member Bill Shares & Totals
+  const memberBills = {};
+  state.members.forEach(m => {
+    memberBills[m] = {
+      shares: {},
+      total: 0
+    };
+  });
+
+  state.fixedBills.forEach(b => {
+    state.members.forEach(m => {
+      const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
+                         (b.splitCount < state.members.length && m === 'Imam') ||
+                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
+      const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+      memberBills[m].shares[b.id] = {
+        amount: share,
+        isExcluded
+      };
+      memberBills[m].total += share;
+    });
+  });
+
+  // Calculate Collection Statistics
+  let paidCount = 0;
+  let pendingCount = 0;
+  let paidAmount = 0;
+  let pendingAmount = 0;
+  const totalFixed = state.fixedBills.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+
+  state.members.forEach(m => {
+    const status = state.memberBillStatus[m] || 'Pending';
+    if (status === 'Paid') {
+      paidCount++;
+      paidAmount += memberBills[m].total;
+    } else {
+      pendingCount++;
+      pendingAmount += memberBills[m].total;
+    }
+  });
+
+  const collectionPct = totalFixed > 0 ? Math.round((paidAmount / totalFixed) * 100) : 0;
+
+  // 2. Render Collection Banner
+  const bannerEl = document.getElementById('utilityCollectionBanner');
+  if (bannerEl) {
+    bannerEl.innerHTML = `
+      <section class="stats-row" style="margin-bottom: 12px;">
+        <div class="stat-card">
+          <span class="stat-label">মোট ফিক্সড বিল</span>
+          <div class="stat-value mono" style="color:var(--text-main);">৳${Math.round(totalFixed).toLocaleString()}</div>
+          <span class="stat-desc">${state.members.length} জন সদস্যের সর্বমোট বিল</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">পরিশোধিত (Collected)</span>
+          <div class="stat-value mono" style="color:var(--success);">৳${Math.round(paidAmount).toLocaleString()}</div>
+          <span class="stat-desc">${paidCount} জন পরিশোধ করেছেন (${collectionPct}%)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">বকেয়া (Pending)</span>
+          <div class="stat-value mono" style="color:${pendingCount > 0 ? 'var(--danger)' : 'var(--text-muted)'};">৳${Math.round(pendingAmount).toLocaleString()}</div>
+          <span class="stat-desc">${pendingCount} জনের বাকি আছে</span>
+        </div>
+      </section>
+
+      <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:10px 14px; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.8rem;">
+          <span><b>বিল আদায় অগ্রগতি:</b> ${collectionPct}% সম্পন্ন (${paidCount}/${state.members.length} জন পরিশোধিত)</span>
+          <span class="mono" style="color:${pendingAmount > 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:700;">
+            ${pendingAmount > 0 ? `বাকি ৳${Math.round(pendingAmount).toLocaleString()}` : 'সব পরিশোধিত 🎉'}
+          </span>
+        </div>
+        <div class="track-bar" style="height:8px;">
+          <div class="track-fill" style="width:${collectionPct}%; background:${collectionPct === 100 ? 'var(--success)' : 'var(--accent)'};"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 3. Render Master Member Bill Matrix Table
+  const matrixTable = document.getElementById('memberUtilityMatrixTable');
+  if (matrixTable) {
+    matrixTable.innerHTML = `
+      <thead>
+        <tr>
+          <th style="min-width: 120px;">সদস্য</th>
+          ${state.fixedBills.map(b => {
+            let short = b.title.split('(')[0].trim();
+            return `<th class="text-right" style="min-width: 90px;">${short}</th>`;
+          }).join('')}
+          <th class="text-right" style="min-width: 110px;">মোট প্রদেয়</th>
+          <th class="text-center" style="width: 100px;">স্ট্যাটাস</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.members.map(m => {
+          const mb = memberBills[m];
+          const bStatus = state.memberBillStatus[m] || 'Pending';
+          const isPaid = bStatus === 'Paid';
+          const bClass = isPaid ? 'badge-green' : 'badge-red';
+          const bText = isPaid ? 'Paid' : 'Pending';
+
+          const statusBtn = isAdmin ? `
+            <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.68rem; padding: 2px 7px;" onclick="toggleMemberBillStatus('${m}')" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন (Paid / Pending)">
+              ${bText} ⟳
             </button>
           ` : `
-            <span class="badge ${statusClass}">${statusText}</span>
-          `}
-        </td>
-        <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
-          <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
-            <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
-            <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
-          </div>
-        </td>
-      </tr>
+            <span class="badge ${bClass}" style="font-size: 0.68rem; padding: 2px 7px;">${bText}</span>
+          `;
+
+          const billCells = state.fixedBills.map(b => {
+            const item = mb.shares[b.id];
+            if (item && item.isExcluded) {
+              return `<td class="text-right" style="color:var(--text-muted); font-size:0.75rem;">৳০ <span style="font-size:0.65rem; color:#38bdf8;">(মুক্ত)</span></td>`;
+            }
+            return `<td class="text-right mono">৳${Math.round(item ? item.amount : 0).toLocaleString()}</td>`;
+          }).join('');
+
+          return `
+            <tr>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="member-avatar" style="width:26px; height:26px; font-size:0.75rem;">${m.charAt(0)}</div>
+                  <b>${m}</b>
+                </div>
+              </td>
+              ${billCells}
+              <td class="text-right mono" style="font-weight:800; font-size:0.95rem; color:#38bdf8;">
+                ৳${Math.round(mb.total).toLocaleString()}
+              </td>
+              <td class="text-center">${statusBtn}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>মোট খাতের ব্যয়</th>
+          ${state.fixedBills.map(b => `<th class="text-right mono">৳${Number(b.amount).toLocaleString()}</th>`).join('')}
+          <th class="text-right mono" style="font-weight:800; color:var(--text-main);">৳${Math.round(totalFixed).toLocaleString()}</th>
+          <th class="text-center" style="font-size:0.72rem; color:var(--text-muted);">${paidCount}/${state.members.length} Paid</th>
+        </tr>
+      </tfoot>
     `;
-  }).join('');
+  }
 
-  document.getElementById('totalFixedFoot').textContent = formatBDT(metrics.totalFixed);
+  // 4. Render Member Individual Slips (memberUtilityGrid)
+  const memberGrid = document.getElementById('memberUtilityGrid');
+  if (memberGrid) {
+    memberGrid.innerHTML = state.members.map(m => {
+      const mb = memberBills[m];
+      const bStatus = state.memberBillStatus[m] || 'Pending';
+      const isPaid = bStatus === 'Paid';
+      const bClass = isPaid ? 'badge-green' : 'badge-red';
+      const bText = isPaid ? 'Paid' : 'Pending';
 
-  // Render Home Dashboard Bills List
-  const dashBillsContainer = document.getElementById('dashboardBillsContainer');
-  if (dashBillsContainer) {
-    if (!state.fixedBills || state.fixedBills.length === 0) {
-      dashBillsContainer.innerHTML = `
-        <div class="text-center text-muted" style="padding: 20px; font-size: 0.85rem;">
-          কোনো মাসিক বিল এখনো যোগ করা হয়নি
-        </div>
+      const statusBtn = isAdmin ? `
+        <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.72rem; padding: 2px 8px;" onclick="toggleMemberBillStatus('${m}')" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন (Paid / Pending)">
+          ${bText} ⟳
+        </button>
+      ` : `
+        <span class="badge ${bClass}" style="font-size: 0.72rem; padding: 2px 8px;">${bText}</span>
       `;
-    } else {
-      dashBillsContainer.innerHTML = state.fixedBills.map(b => {
-        const split = b.splitCount || state.members.length;
-        const avg = b.amount / split;
-        const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
-        const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
+
+      const lineItems = state.fixedBills.map(b => {
+        const item = mb.shares[b.id];
         let icon = '🏠';
         const tLower = (b.title || '').toLowerCase();
         if (tLower.includes('wifi') || tLower.includes('ওয়াইফাই') || tLower.includes('নেট')) icon = '📶';
         else if (tLower.includes('বুয়া') || tLower.includes('খালা') || tLower.includes('cook')) icon = '🧹';
         else if (tLower.includes('বিদ্যুৎ') || tLower.includes('কারেন্ট') || tLower.includes('electric')) icon = '⚡';
         else if (tLower.includes('গ্যাস') || tLower.includes('পানি') || tLower.includes('gas') || tLower.includes('water')) icon = '💧';
-        else if (tLower.includes('ময়লা') || tLower.includes('waste')) icon = '🗑️';
 
+        if (item && item.isExcluded) {
+          return `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="text-muted">${icon} ${b.title.split('(')[0].trim()}:</span>
+              <span class="mono" style="color:var(--text-muted);">৳০ <span class="badge" style="font-size:0.62rem; padding:1px 4px; color:#38bdf8;">মুক্ত</span></span>
+            </div>
+          `;
+        }
         return `
-          <div class="tx-card-item">
-            <div class="tx-card-left">
-              <div class="tx-avatar-chip" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 1.1rem;">${icon}</div>
-              <div class="tx-details">
-                <div class="tx-title" style="display:flex; align-items:center; gap:6px;">
-                  <span>${b.title}</span>
-                  <span class="badge ${statusClass}" style="font-size:0.65rem; padding:1px 5px;">${statusText}</span>
-                </div>
-                <div class="tx-sub">
-                  <span>মাথাপিছু: <b>৳${avg.toFixed(2)}</b> (${split} জন)</span>
-                  ${b.note ? ` • <span>${b.note}</span>` : ''}
-                </div>
-              </div>
-            </div>
-            <div class="tx-card-right">
-              <span class="tx-amount">৳${Number(b.amount).toLocaleString()}</span>
-              ${isAdmin ? `
-                <div class="tx-actions">
-                  <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
-                  <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
-                </div>
-              ` : ''}
-            </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="text-muted">${icon} ${b.title.split('(')[0].trim()}:</span>
+            <span class="mono" style="font-weight:600;">৳${Math.round(item ? item.amount : 0).toLocaleString()}</span>
           </div>
         `;
       }).join('');
-    }
+
+      return `
+        <div class="card" style="padding: 16px; border-radius: var(--radius-lg); background: var(--bg-card); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="member-avatar" style="width: 36px; height: 36px; font-weight: 800;">${m.charAt(0)}</div>
+                <div>
+                  <div style="font-weight: 700; font-size: 1rem;">${m}</div>
+                  <span class="text-muted text-sm" style="font-size: 0.72rem;">মাসিক ইউটিলিটি স্লিপ</span>
+                </div>
+              </div>
+              <div>${statusBtn}</div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 7px; font-size: 0.84rem;">
+              ${lineItems}
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="text-muted" style="font-size: 0.72rem; display: block;">মোট প্রদেয় বিল</span>
+              <span class="mono" style="font-size: 1.15rem; font-weight: 800; color: #38bdf8;">
+                ৳${Math.round(mb.total).toLocaleString()}
+              </span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="copyMemberBillSlip('${m}')" style="font-size: 0.75rem; padding: 4px 9px;" title="হোয়াটসঅ্যাপে পাঠানোর জন্য এই মেম্বারের বিল স্লিপ কপি করুন">
+              📋 স্লিপ কপি
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
-  document.getElementById('avgFixedFoot').textContent = `মাথাপিছু ~৳${(metrics.totalFixed / (state.members.length || 1)).toFixed(2)}`;
 
-  // Combined Shared Items (Bazar extra supplies + direct shared items)
-  const sharedTbody = document.getElementById('sharedItemsBody');
-  if (sharedTbody) {
-    const allSharedList = [];
-    (state.bazar || []).forEach(b => {
-      if (b.category === 'shared' || b.type === 'shared') {
-        allSharedList.push({
-          id: b.id,
-          name: b.item,
-          price: b.amount,
-          buyer: b.shopper,
-          date: b.date || '',
-          isBazar: true
-        });
-      }
-    });
-    (state.sharedItems || []).forEach(item => {
-      allSharedList.push({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        buyer: item.buyer,
-        date: item.date || '',
-        isBazar: false
-      });
-    });
+  // 5. Render Fixed Bills Table (Management)
+  const tbody = document.getElementById('fixedBillsBody');
+  if (tbody) {
+    tbody.innerHTML = state.fixedBills.map(b => {
+      const avg = b.amount / (b.splitCount || state.members.length);
+      const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
+      const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
 
-    if (allSharedList.length === 0) {
-      sharedTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:16px;">এখনো কোনো মেস সামগ্রী কেনা হয়নি</td></tr>`;
-    } else {
-      sharedTbody.innerHTML = allSharedList.map(item => `
+      return `
         <tr>
           <td>
-            <b>${item.name}</b>
-            ${item.date ? `<br><span class="text-muted text-sm">${item.date}</span>` : ''}
+            <b>${b.title}</b>
+            ${b.note ? `<br><span class="text-muted text-sm">${b.note}</span>` : ''}
           </td>
-          <td class="text-right mono"><b>৳${Number(item.price).toLocaleString()}</b></td>
-          <td><span class="badge" style="background:rgba(192,132,252,0.15); color:#c084fc;">${item.buyer}</span></td>
+          <td class="text-right mono">৳${Number(b.amount).toLocaleString()}</td>
+          <td class="text-right mono">৳${avg.toFixed(2)}</td>
+          <td>
+            ${isAdmin ? `
+              <button class="badge ${statusClass}" onclick="toggleBillStatus(${b.id})" style="cursor:pointer; border:none;" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
+                ${statusText} ⟳
+              </button>
+            ` : `
+              <span class="badge ${statusClass}">${statusText}</span>
+            `}
+          </td>
           <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
             <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
-              ${item.isBazar 
-                ? `<button class="btn-action-edit" onclick="openEditBazarModal(${item.id})" title="এডিট করুন">✏️</button>
-                   <button class="btn-action-delete" onclick="deleteBazar(${item.id})" title="মুছে ফেলুন">🗑️</button>`
-                : `<button class="btn-action-delete" onclick="deleteSharedItem(${item.id})" title="মুছে ফেলুন">🗑️</button>`
-              }
+              <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
+              <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
             </div>
           </td>
         </tr>
-      `).join('');
-    }
-  }
-  const perShare = state.members.length > 0 ? (metrics.totalSharedBazar / state.members.length).toFixed(2) : '0';
-  const sharedTotalBadge = document.getElementById('sharedItemsTotal');
-  if (sharedTotalBadge) {
-    sharedTotalBadge.textContent = `মোট: ৳${metrics.totalSharedBazar} (মাথাপিছু ৳${perShare})`;
+      `;
+    }).join('');
   }
 
-  // Member Utility Cards (dynamic estimation)
-  const memberGrid = document.getElementById('memberUtilityGrid');
-  memberGrid.innerHTML = state.members.map(m => {
-    // Calculate this member's share across bills
-    let myBillTotal = 0;
-    const billBreakdowns = state.fixedBills.map(b => {
-      // If note mentions 3 persons (and Imam), Imam is excluded
-      const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
-                         (b.splitCount < state.members.length && m === 'Imam') ||
-                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
-      const share = isExcluded ? 0 : (b.amount / (b.splitCount || state.members.length));
-      myBillTotal += share;
-      const titleShort = b.title.split(' ')[0];
-      return isExcluded ? `${titleShort}: ৳০ (মুক্ত)` : `${titleShort}: ৳${share.toFixed(0)}`;
-    }).join(' • ');
+  const footTotal = document.getElementById('totalFixedFoot');
+  if (footTotal) footTotal.textContent = formatBDT(totalFixed);
+  const footAvg = document.getElementById('avgFixedFoot');
+  if (footAvg) footAvg.textContent = `~${formatBDT(state.members.length > 0 ? totalFixed / state.members.length : 0)}`;
 
-    return `
-      <div class="member-card">
-        <div class="member-head">
-          <b>${m}</b>
-          <span class="badge badge-green">হিসাবভুক্ত</span>
-        </div>
-        <div class="text-sm text-muted" style="line-height: 1.6;">
-          ${billBreakdowns}
-        </div>
-        <div class="member-breakdown" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-          <span>তার অংশের মোট বিল:</span>
-          <div style="display: inline-flex; align-items: center; gap: 6px;">
-            <span class="mono" style="font-weight:700;">৳${myBillTotal.toFixed(2)}</span>
-            ${(() => {
-              if (!state.memberBillStatus) state.memberBillStatus = {};
-              const bStatus = state.memberBillStatus[m] || 'Pending';
-              const isPaid = bStatus === 'Paid';
-              const bClass = isPaid ? 'badge-green' : 'badge-red';
-              const bText = isPaid ? 'Paid' : 'Pending';
-              return isAdmin ? `
-                <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberBillStatus('${m}')" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
-                  ${bText} ⟳
-                </button>
-              ` : `
-                <span class="badge ${bClass}" style="font-size: 0.65rem; padding: 1px 6px;">${bText}</span>
-              `;
-            })()}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  // 6. Render Shared Items Table
+  renderSharedItems();
 }
 
 window.toggleMemberBillStatus = function(memberName) {
@@ -2450,7 +2553,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v17';
+  const LATEST_BUILD = '2026-10-20-v18';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -2638,4 +2741,88 @@ window.openMemberDetailsModal = function(memberName) {
 window.closeMemberDetailsModal = function() {
   const modal = document.getElementById('memberDetailsModal');
   if (modal) modal.classList.remove('open');
+};
+
+
+// Copy Individual Member Bill Slip
+window.copyMemberBillSlip = function(memberName) {
+  if (!state.fixedBills) return;
+  const m = memberName;
+  const monthName = state.month || 'চলতি মাস';
+
+  let total = 0;
+  const lines = state.fixedBills.map(b => {
+    const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
+                       (b.splitCount < state.members.length && m === 'Imam') ||
+                       (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
+    const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+    total += share;
+    const titleClean = b.title.split('(')[0].trim();
+    if (isExcluded) return `• ${titleClean}: ৳০ (মুক্ত)`;
+    return `• ${titleClean}: ৳${Math.round(share).toLocaleString()}`;
+  });
+
+  const bStatus = state.memberBillStatus?.[m] || 'Pending';
+  const statusEmoji = bStatus === 'Paid' ? 'Paid 🟢 (পরিশোধিত)' : 'Pending 🔴 (বকেয়া)';
+
+  const text = `🏠 *${monthName} - ${m}-এর বাসা ভাড়া ও বিল স্লিপ*
+━━━━━━━━━━━━━━━━━━━━
+${lines.join('\n')}
+━━━━━━━━━━━━━━━━━━━━
+*সর্বমোট প্রদেয় বিল:* ৳${Math.round(total).toLocaleString()}
+*পেমেন্ট অবস্থা:* ${statusEmoji}
+━━━━━━━━━━━━━━━━━━━━
+(অনুগ্রহ করে দ্রুত বিল পরিশোধ করুন)`;
+
+  copyTextToClipboard(text, `📋 ${m}-এর বিল স্লিপ হোয়াটসঅ্যাপে পাঠানোর জন্য কপি হয়েছে!`);
+};
+
+// Copy Full Group WhatsApp Utility Notice
+window.copyWhatsAppUtilityNotice = function() {
+  if (!state.fixedBills) return;
+  const monthName = state.month || 'চলতি মাস';
+
+  let totalFixed = 0;
+  let paidAmount = 0;
+  let pendingAmount = 0;
+  let paidCount = 0;
+  let pendingCount = 0;
+
+  const memberLines = state.members.map(m => {
+    let mTotal = 0;
+    const details = state.fixedBills.map(b => {
+      const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
+                         (b.splitCount < state.members.length && m === 'Imam') ||
+                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
+      const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+      mTotal += share;
+      const titleClean = b.title.split('(')[0].trim();
+      return isExcluded ? `${titleClean} ৳০` : `${titleClean} ৳${Math.round(share)}`;
+    }).join(' | ');
+
+    totalFixed += mTotal;
+    const bStatus = state.memberBillStatus?.[m] || 'Pending';
+    if (bStatus === 'Paid') {
+      paidCount++;
+      paidAmount += mTotal;
+    } else {
+      pendingCount++;
+      pendingAmount += mTotal;
+    }
+
+    const badge = bStatus === 'Paid' ? '[Paid 🟢]' : '[Pending 🔴]';
+    return `• *${m}*: ৳${Math.round(mTotal).toLocaleString()} ${badge}\n  ↳ ${details}`;
+  });
+
+  const text = `🏠 *${monthName} - বাসা ভাড়া ও ইউটিলিটি বিল নোটিশ*
+━━━━━━━━━━━━━━━━━━━━━
+${memberLines.join('\n')}
+━━━━━━━━━━━━━━━━━━━━━
+💰 *মোট বিল:* ৳${Math.round(totalFixed).toLocaleString()}
+✅ *পরিশোধিত:* ৳${Math.round(paidAmount).toLocaleString()} (${paidCount} জন)
+⏳ *বকেয়া:* ৳${Math.round(pendingAmount).toLocaleString()} (${pendingCount} জন)
+━━━━━━━━━━━━━━━━━━━━━
+(অনুগ্রহ করে সবাই যথাসময়ে বিল পরিশোধ করুন)`;
+
+  copyTextToClipboard(text, '📋 সম্পূর্ণ মেসের বিল নোটিশ কপি হয়েছে!');
 };

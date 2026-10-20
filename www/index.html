@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.1.7">
+  <link rel="stylesheet" href="style.css?v=1.1.8">
 </head>
 <body>
 
@@ -372,22 +372,57 @@
           🏠 বাসা ভাড়া ও ইউটিলিটি বিল
         </button>
       </div>
+
       <div class="pane-header">
         <div>
           <h2>বাসা ভাড়া ও ইউটিলিটি বিল</h2>
-          <p class="text-muted">ভাড়া, ওয়াইফাই, বুয়া ও অন্যান্য স্থায়ী খরচের হিসাব</p>
+          <p class="text-muted">ভাড়া, ওয়াইফাই, বুয়া ও অন্যান্য স্থায়ী খরচের মাথাপিছু হিসাব</p>
         </div>
-        <div class="pane-actions admin-only-block" id="utilityAdminControls" style="display: none;">
-          <button class="btn btn-primary btn-sm" id="openAddBillBtn">+ নতুন বিল যোগ করুন</button>
-          <button class="btn btn-outline btn-sm" id="openAddSharedItemBtn">+ দ্রব্যাদি খরচ যোগ</button>
+        <div class="pane-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="copyWhatsAppUtilityNotice()">
+            📋 হোয়াটসঅ্যাপ নোটিশ কপি
+          </button>
+          <div class="admin-only-block" id="utilityAdminControls" style="display: none; display: inline-flex; gap: 6px;">
+            <button class="btn btn-primary btn-sm" id="openAddBillBtn">+ নতুন বিল</button>
+            <button class="btn btn-outline btn-sm" id="openAddSharedItemBtn">+ দ্রব্যাদি খরচ</button>
+          </div>
         </div>
       </div>
 
+      <!-- Collection Progress & KPI Banner -->
+      <div id="utilityCollectionBanner" style="margin-bottom: 20px;"></div>
+
+      <!-- Master Per-Person Bill Matrix Table -->
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-title-row">
+          <div>
+            <h3 style="margin: 0; font-size: 1.05rem;">📊 সদস্যভিত্তিক বিল ম্যাট্রিক্স (খাতওয়ারি ভাগ)</h3>
+            <p class="text-muted text-sm" style="margin-top: 2px;">কে কোন খাতে কত টাকা দেবেন এবং কার মোট প্রদেয় কত</p>
+          </div>
+          <span class="badge badge-subtle">স্বচ্ছ মাথাপিছু বিভাজন</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="memberUtilityMatrixTable">
+            <!-- Dynamic Matrix -->
+          </table>
+        </div>
+      </div>
+
+      <!-- Member Individual Slips -->
+      <div style="margin: 28px 0 14px 0; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.05rem;">🧾 সদস্যদের ব্যক্তিগত বিল স্লিপ ও রিসিট</h3>
+          <p class="text-muted text-sm" style="margin-top: 2px;">প্রতিটি সদস্যের জন্য আলাদা ডিজিটাল ইনভয়েস ও হোয়াটসঅ্যাপে স্লিপ কপি</p>
+        </div>
+      </div>
+      <div class="members-grid" id="memberUtilityGrid" style="margin-bottom: 28px;"></div>
+
+      <!-- Fixed Bills & Shared Items Details Grid -->
       <div class="two-col-grid">
         <div class="card">
           <div class="card-title-row">
-            <h3>মাসিক স্থায়ী বিল</h3>
-            <span class="badge">অক্টোবর ২০২৬</span>
+            <h3>মাসিক স্থায়ী বিলের তালিকা</h3>
+            <span class="badge" id="utilityMonthBadge">অক্টোবর ২০২৬</span>
           </div>
           <div class="table-wrap">
             <table class="table">
@@ -434,9 +469,6 @@
           </div>
         </div>
       </div>
-
-      <h3 style="margin: 28px 0 14px 0;">সদস্যভিত্তিক বিল পরিশোধ বিবরণ</h3>
-      <div class="members-grid" id="memberUtilityGrid"></div>
     </section>
 
     <!-- TAB 5: SMART SETTLEMENT -->
@@ -944,7 +976,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.8"></script>
-  <script src="app.js?v=1.1.7"></script>
+  <script src="app.js?v=1.1.8"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
