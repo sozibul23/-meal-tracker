@@ -31,6 +31,11 @@ function fallbackCopy(text, successMessage) {
  */
 
 const INITIAL_DATA = {
+  depositHistory: [
+    { id: 'init-1', member: 'Sadhin', amount: 1397, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
+    { id: 'init-2', member: 'Tanzid', amount: 1599, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
+    { id: 'init-3', member: 'Akhirul', amount: 1281, date: '1 October 2026', note: 'মেস ফান্ড জমা' }
+  ],
   month: 'October 2026',
   members: ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'],
   adminPin: '1234',
@@ -1542,21 +1547,23 @@ function ensureDepositHistory(st) {
   if (!st) return;
   if (!Array.isArray(st.depositHistory)) {
     st.depositHistory = [];
-    if (st.deposits && typeof st.deposits === 'object') {
-      let idCounter = 1;
-      Object.keys(st.deposits).forEach(member => {
-        const amt = Number(st.deposits[member]) || 0;
-        if (amt > 0) {
-          st.depositHistory.push({
-            id: 'init-' + idCounter++,
-            member: member,
-            amount: amt,
-            date: '1 ' + (st.month || 'October 2026'),
-            note: 'প্রারম্ভিক মেস ফান্ড জমা'
-          });
-        }
-      });
-    }
+  }
+
+  // If depositHistory is empty but members have deposits recorded
+  if (st.depositHistory.length === 0 && st.deposits && typeof st.deposits === 'object') {
+    let idCounter = 1;
+    Object.keys(st.deposits).forEach(member => {
+      const amt = Number(st.deposits[member]) || 0;
+      if (amt > 0) {
+        st.depositHistory.push({
+          id: 'init-' + idCounter++,
+          member: member,
+          amount: amt,
+          date: '1 ' + (st.month || 'October 2026'),
+          note: 'মেস ফান্ড জমা'
+        });
+      }
+    });
   }
 }
 
@@ -1604,6 +1611,18 @@ function renderDepositHistoryTable() {
 
   ensureDepositHistory(state);
 
+  // Update pill button badge counts
+  const pillDep = document.getElementById('pillDepositBtn');
+  if (pillDep) {
+    const depCount = state.depositHistory ? state.depositHistory.length : 0;
+    pillDep.textContent = `💰 টাকা জমা (${depCount})`;
+  }
+  const pillBaz = document.getElementById('pillBazarBtn');
+  if (pillBaz) {
+    const bazCount = state.bazar ? state.bazar.length : 0;
+    pillBaz.textContent = `🛒 বাজার (${bazCount})`;
+  }
+
   if (filterSelect) {
     const currentVal = filterSelect.value || 'ALL';
     filterSelect.innerHTML = `<option value="ALL">সকল সদস্যের জমা</option>` +
@@ -1617,26 +1636,38 @@ function renderDepositHistoryTable() {
     ? history
     : history.filter(d => d.member === selectedMember);
 
+  const totalFilteredDeposit = filtered.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+  const totalBadgeEl = document.getElementById('depositTotalFilterBadge');
+  if (totalBadgeEl) {
+    totalBadgeEl.textContent = `মোট জমা: ${formatBDT(totalFilteredDeposit)}`;
+  }
+
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div class="text-center text-muted" style="padding: 20px; font-size: 0.85rem;">
-        কোনো জমার রেকর্ড পাওয়া যায়নি
+      <div class="text-center text-muted" style="padding: 28px 16px; font-size: 0.88rem;">
+        কোনো জমার রেকর্ড পাওয়া যায়নি<br>
+        <button type="button" class="btn btn-primary btn-sm" style="margin-top: 10px;" onclick="window.openDepositModalGlobal && window.openDepositModalGlobal()">
+          + টাকা জমা দিন
+        </button>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = filtered.slice(0, 10).map(d => `
+  container.innerHTML = filtered.map(d => `
     <div class="tx-card-item">
       <div class="tx-card-left">
-        <div class="tx-avatar-chip" style="background: rgba(74, 222, 128, 0.15); color: #4ade80;">💰</div>
+        <div class="tx-avatar-chip" style="background: rgba(34, 197, 94, 0.15); color: #22c55e;">💰</div>
         <div class="tx-details">
-          <div class="tx-title">${d.member} ${d.note ? `<span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">• ${d.note}</span>` : ''}</div>
+          <div class="tx-title">
+            <b>${d.member}</b>
+            ${d.note ? `<span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);"> • ${d.note}</span>` : ''}
+          </div>
           <div class="tx-sub"><span>${d.date || 'তারিখ নেই'}</span></div>
         </div>
       </div>
       <div class="tx-card-right">
-        <span class="tx-amount positive">+ ৳${Number(d.amount).toLocaleString()}</span>
+        <span class="tx-amount positive" style="font-weight: 800; color: var(--success);">+ ৳${Number(d.amount).toLocaleString()}</span>
         ${isAdmin ? `
           <div class="tx-actions">
             <button class="btn-action-edit" onclick="openEditDepositModal('${d.id}')" title="এডিট করুন">✏️</button>
@@ -2208,6 +2239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFirebase((remoteState) => {
       if (remoteState && remoteState.members) {
         state = remoteState;
+        ensureDepositHistory(state);
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (e) {}
@@ -2553,7 +2585,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v18';
+  const LATEST_BUILD = '2026-10-20-v19';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -2652,16 +2684,31 @@ window.openMemberDetailsModal = function(memberName) {
 
       <!-- Detailed Breakdown Items -->
       <div style="display: flex; flex-direction: column; gap: 9px; font-size: 0.85rem;">
-        <!-- Total Deposit -->
+        <!-- Total Deposit & Transactions -->
         <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 11px 13px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-weight: 600;">💰 মোট ফান্ড জমা</span>
-            <span class="mono" style="font-weight: 800; font-size: 0.95rem;">৳${Math.round(m.totalDeposit).toLocaleString()}</span>
+            <span class="mono" style="font-weight: 800; font-size: 0.95rem; color: var(--success);">৳${Math.round(m.totalDeposit).toLocaleString()}</span>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
             <span>ক্যাশ জমা: ৳${Math.round(m.cashDeposit).toLocaleString()}</span>
             ${m.sharedPaid > 0 ? `<span style="color: #a855f7;">+ মেস সামগ্রী: ৳${Math.round(m.sharedPaid).toLocaleString()}</span>` : ''}
           </div>
+          ${(() => {
+            const memberDeps = (state.depositHistory || []).filter(d => d.member === m.name);
+            if (memberDeps.length === 0) return '';
+            return `
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 0.74rem;">
+                <span class="text-muted" style="font-size: 0.7rem; font-weight: 600;">জমার বিবরণী (${memberDeps.length} টি):</span>
+                ${memberDeps.map(d => `
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-muted); padding: 3px 6px; border-radius: 4px;">
+                    <span>${d.note || 'ফান্ড জমা'} <span class="text-muted">(${d.date || 'তারিখ নেই'})</span></span>
+                    <span class="mono" style="font-weight: 700; color: var(--success);">+ ৳${Number(d.amount).toLocaleString()}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          })()}
         </div>
 
         <!-- Meal Cost -->
