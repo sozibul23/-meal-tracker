@@ -784,14 +784,38 @@ body {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 3px 8px;
   border-radius: var(--radius-pill);
   font-size: 0.72rem;
   font-weight: 700;
   background: var(--bg-muted);
   color: var(--text-main);
   border: 1px solid var(--border-color);
+  transition: all 0.18s ease;
+  line-height: 1.2;
+}
+
+button.badge {
+  cursor: pointer;
+  border: none;
+}
+
+button.badge:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.badge-green, .badge-paid, .badge-success {
+  background: var(--success-bg) !important;
+  color: var(--success) !important;
+  border: 1px solid var(--success-border) !important;
+}
+
+.badge-red, .badge-pending, .badge-due, .badge-danger {
+  background: var(--danger-bg) !important;
+  color: var(--danger) !important;
+  border: 1px solid var(--danger-border) !important;
 }
 
 .badge-subtle {

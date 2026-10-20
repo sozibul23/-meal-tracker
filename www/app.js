@@ -166,14 +166,14 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
       title: b.title,
       amount: b.amount,
       splitCount: b.splitCount || ((b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'))) ? 3 : 4),
-      status: 'Due',
+      status: 'Pending',
       note: b.note || ''
     }));
   } else {
     defaultBills = [
-      { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Due', note: '৪ জনের সমান ভাগ' },
-      { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Due', note: '৪ জনের সমান ভাগ' },
-      { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Due', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
+      { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
+      { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
+      { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
     ];
   }
 
@@ -469,11 +469,21 @@ function renderDashboard(metrics) {
 
     const isPositive = m.balance > 0.01;
     const isNegative = m.balance < -0.01;
-    const statusBadge = isPositive 
-      ? `<span class="badge badge-green">পাবে</span>` 
-      : isNegative 
-        ? `<span class="badge badge-red">দেবে</span>` 
-        : `<span class="badge">ক্লিয়ার</span>`;
+
+    // Overall Member Payment Status (Paid: Green, Pending: Red)
+    if (!state.memberOverallStatus) state.memberOverallStatus = {};
+    const overallStatus = state.memberOverallStatus[m.name] || (isNegative ? 'Pending' : 'Paid');
+    const isOverallPaid = overallStatus === 'Paid';
+    const overallClass = isOverallPaid ? 'badge-green' : 'badge-red';
+    const overallText = isOverallPaid ? 'Paid' : 'Pending';
+
+    const statusBadge = isAdmin ? `
+      <button class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;" onclick="toggleMemberOverallStatus('${m.name}')" title="ক্লিক করে মেম্বার পেমেন্ট স্ট্যাটাস পরিবর্তন করুন (Paid / Pending)">
+        ${overallText} ⟳
+      </button>
+    ` : `
+      <span class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;">${overallText}</span>
+    `;
 
     const balanceText = isPositive
       ? `+ ৳${Math.round(m.balance).toLocaleString()}`
@@ -523,11 +533,11 @@ function renderDashboard(metrics) {
             <span class="mono">৳${Math.round(m.sharedCost).toLocaleString()}</span>
             ${(() => {
               if (!state.memberSharedStatus) state.memberSharedStatus = {};
-              const defaultS = (m.sharedPaid >= m.sharedCost && m.sharedCost > 0) ? 'Paid' : 'Due';
+              const defaultS = (m.sharedPaid >= m.sharedCost && m.sharedCost > 0) ? 'Paid' : 'Pending';
               const sStatus = state.memberSharedStatus[m.name] || defaultS;
               const isPaid = sStatus === 'Paid';
               const sClass = isPaid ? 'badge-green' : 'badge-red';
-              const sText = isPaid ? 'পরিশোধিত' : 'বকেয়া';
+              const sText = isPaid ? 'Paid' : 'Pending';
               return isAdmin ? `
                 <button class="badge ${sClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberSharedStatus('${m.name}')" title="ক্লিক করে মেস সামগ্রী স্ট্যাটাস পরিবর্তন করুন (পরিশোধিত / বকেয়া)">
                   ${sText} ⟳
@@ -547,10 +557,10 @@ function renderDashboard(metrics) {
             <span class="mono" style="color: #38bdf8; font-weight: 700;">৳${Math.round(m.utilityTotal).toLocaleString()}</span>
             ${(() => {
               if (!state.memberBillStatus) state.memberBillStatus = {};
-              const bStatus = state.memberBillStatus[m.name] || 'Due';
+              const bStatus = state.memberBillStatus[m.name] || 'Pending';
               const isPaid = bStatus === 'Paid';
               const bClass = isPaid ? 'badge-green' : 'badge-red';
-              const bText = isPaid ? 'পরিশোধিত' : 'বকেয়া';
+              const bText = isPaid ? 'Paid' : 'Pending';
               return isAdmin ? `
                 <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberBillStatus('${m.name}')" title="ক্লিক করে ভাড়া ও বিল স্ট্যাটাস পরিবর্তন করুন (পরিশোধিত / বকেয়া)">
                   ${bText} ⟳
@@ -843,7 +853,7 @@ function renderUtilities(metrics) {
   tbody.innerHTML = state.fixedBills.map(b => {
     const avg = b.amount / (b.splitCount || state.members.length);
     const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
-    const statusText = b.status === 'Paid' ? 'পরিশোধিত' : 'বকেয়া';
+    const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
 
     return `
       <tr>
@@ -888,7 +898,7 @@ function renderUtilities(metrics) {
         const split = b.splitCount || state.members.length;
         const avg = b.amount / split;
         const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
-        const statusText = b.status === 'Paid' ? 'পরিশোধিত' : 'বকেয়া';
+        const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
         let icon = '🏠';
         const tLower = (b.title || '').toLowerCase();
         if (tLower.includes('wifi') || tLower.includes('ওয়াইফাই') || tLower.includes('নেট')) icon = '📶';
@@ -1016,10 +1026,10 @@ function renderUtilities(metrics) {
             <span class="mono" style="font-weight:700;">৳${myBillTotal.toFixed(2)}</span>
             ${(() => {
               if (!state.memberBillStatus) state.memberBillStatus = {};
-              const bStatus = state.memberBillStatus[m] || 'Due';
+              const bStatus = state.memberBillStatus[m] || 'Pending';
               const isPaid = bStatus === 'Paid';
               const bClass = isPaid ? 'badge-green' : 'badge-red';
-              const bText = isPaid ? 'পরিশোধিত' : 'বকেয়া';
+              const bText = isPaid ? 'Paid' : 'Pending';
               return isAdmin ? `
                 <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberBillStatus('${m}')" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
                   ${bText} ⟳
@@ -1041,12 +1051,26 @@ window.toggleMemberBillStatus = function(memberName) {
     return;
   }
   if (!state.memberBillStatus) state.memberBillStatus = {};
-  const current = state.memberBillStatus[memberName] || 'Due';
-  const next = current === 'Paid' ? 'Due' : 'Paid';
+  const current = state.memberBillStatus[memberName] || 'Pending';
+  const next = current === 'Paid' ? 'Pending' : 'Paid';
   state.memberBillStatus[memberName] = next;
   saveState();
   renderAll();
   showToast(`${memberName}-এর ভাড়া ও বিল: ${next === 'Paid' ? 'পরিশোধিত (Paid)' : 'বকেয়া (Due)'}`);
+};
+
+window.toggleMemberOverallStatus = function(memberName) {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন স্ট্যাটাস পরিবর্তন করতে পারবেন');
+    return;
+  }
+  if (!state.memberOverallStatus) state.memberOverallStatus = {};
+  const current = state.memberOverallStatus[memberName] || 'Pending';
+  const next = current === 'Paid' ? 'Pending' : 'Paid';
+  state.memberOverallStatus[memberName] = next;
+  saveState();
+  renderAll();
+  showToast(`${memberName}-এর পেমেন্ট স্ট্যাটাস: ${next}`);
 };
 
 window.toggleMemberSharedStatus = function(memberName) {
@@ -1055,8 +1079,8 @@ window.toggleMemberSharedStatus = function(memberName) {
     return;
   }
   if (!state.memberSharedStatus) state.memberSharedStatus = {};
-  const current = state.memberSharedStatus[memberName] || 'Due';
-  const next = current === 'Paid' ? 'Due' : 'Paid';
+  const current = state.memberSharedStatus[memberName] || 'Pending';
+  const next = current === 'Paid' ? 'Pending' : 'Paid';
   state.memberSharedStatus[memberName] = next;
   saveState();
   renderAll();
@@ -1067,7 +1091,7 @@ window.toggleBillStatus = function(id) {
   if (!isAdmin) return;
   const bill = state.fixedBills.find(b => b.id === id);
   if (bill) {
-    bill.status = bill.status === 'Paid' ? 'Due' : 'Paid';
+    bill.status = bill.status === 'Paid' ? 'Pending' : 'Paid';
     saveState();
     showToast(`স্ট্যাটাস পরিবর্তন হয়েছে: ${bill.status === 'Paid' ? 'পরিশোধিত' : 'বকেয়া'}`);
   }
@@ -2488,7 +2512,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v15';
+  const LATEST_BUILD = '2026-10-20-v16';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
