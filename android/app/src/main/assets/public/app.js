@@ -256,10 +256,10 @@ function formatBDT(amount,
 // Calculate Metrics (Fund-based calculation)
 function calculateMetrics() {
   if (!state.deposits) state.deposits = {};
-  let totalDeposit = 0;
+  let totalCashDeposit = 0;
   state.members.forEach(m => {
     if (state.deposits[m] === undefined) state.deposits[m] = 0;
-    totalDeposit += Number(state.deposits[m]) || 0;
+    totalCashDeposit += Number(state.deposits[m]) || 0;
   });
 
   // Separate Food Bazar (for Meal Rate) vs Extra/Shared Mess Items (Equal Split)
@@ -290,6 +290,10 @@ function calculateMetrics() {
   });
 
   const totalBazar = totalFoodBazar + totalSharedBazar;
+  // Total Combined Deposit = Cash Deposit + Extra Mess Supplies paid by members
+  const totalDeposit = totalCashDeposit + totalSharedBazar;
+  // Remaining Cash in mess box = Cash Deposit - Food Bazar
+  const remainingCash = totalCashDeposit - totalFoodBazar;
   const remainingFund = totalDeposit - totalBazar;
 
   const memberMeals = {};
@@ -361,10 +365,12 @@ function calculateMetrics() {
   const settlementTransfers = computeSettlement(memberSummaries);
 
   return {
+    totalCashDeposit,
     totalDeposit,
     totalBazar,
     totalFoodBazar,
     totalSharedBazar,
+    remainingCash,
     remainingFund,
     totalMeals,
     mealRate,
@@ -421,16 +427,27 @@ function computeSettlement(summaries) {
 // Render Top Stats
 function renderKPIs(metrics) {
   document.getElementById('kpiTotalDeposit').textContent = formatBDT(metrics.totalDeposit);
-  document.getElementById('kpiDepositDesc').textContent = `${state.members.length} জন সদস্যের জমা`;
+  const depDescEl = document.getElementById('kpiDepositDesc');
+  if (depDescEl) {
+    depDescEl.textContent = metrics.totalSharedBazar > 0
+      ? `ক্যাশ ${formatBDT(metrics.totalCashDeposit)} + মেস সামগ্রী ${formatBDT(metrics.totalSharedBazar)}`
+      : `${state.members.length} জন সদস্যের জমা`;
+  }
   document.getElementById('kpiTotalBazar').textContent = formatBDT(metrics.totalBazar);
   document.getElementById('kpiBazarCount').textContent = `খাবার: ${formatBDT(metrics.totalFoodBazar)} • মেস সামগ্রী: ${formatBDT(metrics.totalSharedBazar)}`;
   
   const remEl = document.getElementById('kpiRemainingFund');
-  remEl.textContent = formatBDT(metrics.remainingFund);
-  remEl.style.color = metrics.remainingFund < 0 ? 'var(--danger)' : 'var(--text-main)';
-  document.getElementById('kpiFundStatus').textContent = metrics.remainingFund >= 0 
-    ? 'ক্যাশে জমা উদ্বৃত্ত আছে' 
-    : 'ঘাটতি (ফান্ডে অতিরিক্ত টাকা লাগবে)';
+  const remCash = metrics.remainingCash !== undefined ? metrics.remainingCash : metrics.remainingFund;
+  if (remEl) {
+    remEl.textContent = formatBDT(remCash);
+    remEl.style.color = remCash < 0 ? 'var(--danger)' : 'var(--text-main)';
+  }
+  const fundStatusEl = document.getElementById('kpiFundStatus');
+  if (fundStatusEl) {
+    fundStatusEl.textContent = remCash >= 0 
+      ? 'ক্যাশের জমা থেকে খাবার বাজার সম্পন্ন' 
+      : 'ঘাটতি (ফান্ডে অতিরিক্ত ক্যাশ লাগবে)';
+  }
 
   document.getElementById('kpiMealRate').textContent = `৳${metrics.mealRate.toFixed(2)}`;
   document.getElementById('kpiRateFormula').textContent = `মোট ব্যয় ÷ ${metrics.totalMeals} মিল`;
@@ -590,26 +607,33 @@ function renderDashboard(metrics) {
     }
   }
 
-  // Fund Contribution Progress
+  // Fund Contribution Progress (Cash + Mess Supplies)
   const shopperList = document.getElementById('shopperProgressList');
-  shopperList.innerHTML = '';
-  document.getElementById('bazarTotalBadge').textContent = `মোট জমা ${formatBDT(metrics.totalDeposit)}`;
+  if (shopperList) {
+    shopperList.innerHTML = '';
+    const badgeEl = document.getElementById('bazarTotalBadge');
+    if (badgeEl) badgeEl.textContent = `মোট জমা ${formatBDT(metrics.totalDeposit)}`;
 
-  state.members.forEach(member => {
-    const deposited = Number(state.deposits[member]) || 0;
-    const pct = metrics.totalDeposit > 0 ? (deposited / metrics.totalDeposit * 100).toFixed(1) : 0;
-    shopperList.innerHTML += `
-      <div>
-        <div class="shopper-item-meta">
-          <span><b>${member}</b>: ${formatBDT(deposited)}</span>
-          <span class="mono text-muted text-sm">${pct}%</span>
+    state.members.forEach(member => {
+      const summary = metrics.memberSummaries.find(s => s.name === member);
+      const totalContributed = summary ? summary.totalDeposit : (Number(state.deposits[member]) || 0);
+      const pct = metrics.totalDeposit > 0 ? (totalContributed / metrics.totalDeposit * 100).toFixed(1) : 0;
+      shopperList.innerHTML += `
+        <div>
+          <div class="shopper-item-meta">
+            <span>
+              <b>${member}</b>: ${formatBDT(totalContributed)}
+              ${summary && summary.sharedPaid > 0 ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(ক্যাশ ${formatBDT(summary.cashDeposit)} + মেস ${formatBDT(summary.sharedPaid)})</span>` : ''}
+            </span>
+            <span class="mono text-muted text-sm">${pct}%</span>
+          </div>
+          <div class="track-bar">
+            <div class="track-fill" style="width: ${pct}%"></div>
+          </div>
         </div>
-        <div class="track-bar">
-          <div class="track-fill" style="width: ${pct}%"></div>
-        </div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
 
   // Snippet
   const snippet = document.getElementById('dashboardSettlementSnippet');
@@ -2464,7 +2488,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v14';
+  const LATEST_BUILD = '2026-10-20-v15';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
