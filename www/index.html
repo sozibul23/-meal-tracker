@@ -209,6 +209,41 @@
           </div>
         </div>
       </div>
+    
+      <!-- Deposit History Card -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-title-row" style="flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h3>💰 ফান্ড জমার বিস্তারিত ইতিহাস ও ট্র্যাকিং</h3>
+            <p class="text-muted text-sm">কোন দিন কোন সদস্য কত টাকা জমা দিয়েছেন তার সম্পূর্ণ তালিকা</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <select id="depositHistoryFilter" class="input input-sm" style="width: auto; padding: 4px 10px;">
+              <option value="ALL">সকল সদস্যের জমা</option>
+            </select>
+            <button class="btn btn-outline btn-sm admin-only-btn" style="display: none;" onclick="window.openDepositModalGlobal && window.openDepositModalGlobal()">
+              + নতুন জমা যোগ করুন
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width: 150px;">জমার তারিখ</th>
+                <th>সদস্যের নাম</th>
+                <th class="text-right">টাকার পরিমাণ</th>
+                <th>মাধ্যম / বিবরণ</th>
+                <th class="text-center admin-only-cell" style="width: 100px; display: none;">মুছে ফেলুন</th>
+              </tr>
+            </thead>
+            <tbody id="depositHistoryTableBody">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </section>
 
     <!-- TAB 2: DAILY MEALS SHEET -->
@@ -591,34 +626,38 @@
   </div>
 
   <!-- Modal: Add Deposit -->
+  
   <div class="modal" id="depositModal">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width: 500px;">
       <div class="modal-head">
-        <h3>মেস ফান্ডে টাকা জমা (Member Deposit)</h3>
+        <h3>💰 ফান্ডে টাকা জমা যোগ করুন</h3>
         <button class="modal-close-btn" id="closeDepositModalBtn">&times;</button>
       </div>
       <form id="depositForm">
         <div class="modal-body">
-          <p class="text-muted text-sm">সদস্যের জমা দেওয়া টাকা মেসের মূল ফান্ডে যুক্ত হবে এবং সেখান থেকেই বাজার খরচ বিয়োগ হবে।</p>
-          <div class="form-field" style="margin-top: 12px;">
+          <p class="text-muted text-sm">মেসের মূল ফান্ডে কোনো সদস্য টাকা জমা দিলে এখানে এন্ট্রি দিন। ভুল এন্ট্রি হলে যেকোনো সময় নিচে ডিলিট বাটন দিয়ে ফিক্স করতে পারবেন।</p>
+          <div class="form-field" style="margin-top: 14px;">
             <label for="depositMemberSelect">সদস্য নির্বাচন করুন *</label>
             <select id="depositMemberSelect" class="input" required></select>
           </div>
-          <div class="form-field">
-            <label for="depositAmountInput">জমার পরিমাণ (টাকা) *</label>
-            <input type="number" id="depositAmountInput" class="input mono" placeholder="যেমন: 1500" min="1" step="any" required>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="depositAmountInput">টাকার পরিমাণ *</label>
+              <input type="number" id="depositAmountInput" class="input mono" placeholder="উদা: ১৫০০" min="1" step="any" required>
+            </div>
+            <div class="form-field">
+              <label for="depositDateInput">জমা দেওয়ার তারিখ *</label>
+              <input type="text" id="depositDateInput" class="input" placeholder="উদা: ২০ অক্টোবর ২০২৬" required>
+            </div>
           </div>
           <div class="form-field">
-            <label for="depositTypeSelect">অ্যাকশন</label>
-            <select id="depositTypeSelect" class="input">
-              <option value="add">বর্তমান জমার সাথে যোগ করুন (+)</option>
-              <option value="set">সরাসরি নতুন মোট জমা নির্ধারণ করুন (=)</option>
-            </select>
+            <label for="depositNoteInput">মাধ্যম / বিবরণ (ঐচ্ছিক)</label>
+            <input type="text" id="depositNoteInput" class="input" placeholder="উদা: নগদ ক্যাশ / বিকাশ / রকেট">
           </div>
         </div>
         <div class="modal-foot">
           <button type="button" class="btn btn-outline btn-sm" id="cancelDepositModalBtn">বাতিল</button>
-          <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+          <button type="submit" class="btn btn-primary btn-sm">জমা নিশ্চিত করুন</button>
         </div>
       </form>
     </div>

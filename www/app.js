@@ -202,6 +202,7 @@ function loadState(monthId = currentMonthId) {
         parsed.deposits = {};
         (parsed.members || []).forEach(m => parsed.deposits[m] = 0);
       }
+      ensureDepositHistory(parsed);
       return parsed;
     }
   } catch (e) {
@@ -980,6 +981,118 @@ window.switchMonth = function(monthId) {
   showToast(`মাস পরিবর্তিত হয়েছে: ${mMeta ? (mMeta.label || mMeta.name) : currentMonthId}`);
 };
 
+
+function ensureDepositHistory(st) {
+  if (!st) return;
+  if (!Array.isArray(st.depositHistory)) {
+    st.depositHistory = [];
+    if (st.deposits && typeof st.deposits === 'object') {
+      let idCounter = 1;
+      Object.keys(st.deposits).forEach(member => {
+        const amt = Number(st.deposits[member]) || 0;
+        if (amt > 0) {
+          st.depositHistory.push({
+            id: 'init-' + idCounter++,
+            member: member,
+            amount: amt,
+            date: '1 ' + (st.month || 'October 2026'),
+            note: 'প্রারম্ভিক মেস ফান্ড জমা'
+          });
+        }
+      });
+    }
+  }
+}
+
+function recalculateDepositsFromHistory() {
+  if (!state.deposits) state.deposits = {};
+  state.members.forEach(m => {
+    state.deposits[m] = 0;
+  });
+
+  if (Array.isArray(state.depositHistory)) {
+    state.depositHistory.forEach(d => {
+      const m = d.member;
+      const amt = Number(d.amount) || 0;
+      if (m) {
+        state.deposits[m] = (Number(state.deposits[m]) || 0) + amt;
+      }
+    });
+  }
+}
+
+window.deleteDepositEntry = function(depositId) {
+  if (!isAdmin) {
+    showToast('জমা ডিলিট করতে এডমিন লগইন করুন');
+    return;
+  }
+
+  ensureDepositHistory(state);
+  const entry = state.depositHistory.find(d => String(d.id) === String(depositId));
+  if (!entry) return;
+
+  if (confirm(`আপনি কি "${entry.member}" এর "${formatBDT(entry.amount)}" জমার এই এন্ট্রিটি মুছে ফেলতে চান?`)) {
+    state.depositHistory = state.depositHistory.filter(d => String(d.id) !== String(depositId));
+    recalculateDepositsFromHistory();
+
+    saveState();
+    renderAll();
+    showToast(`"${entry.member}" এর ${formatBDT(entry.amount)} জমা সফলভাবে মুছে ফেলা হয়েছে!`);
+  }
+};
+
+function renderDepositHistoryTable() {
+  const tbody = document.getElementById('depositHistoryTableBody');
+  const filterSelect = document.getElementById('depositHistoryFilter');
+  if (!tbody) return;
+
+  ensureDepositHistory(state);
+
+  if (filterSelect) {
+    const currentVal = filterSelect.value || 'ALL';
+    filterSelect.innerHTML = `<option value="ALL">সকল সদস্যের জমা</option>` +
+      state.members.map(m => `<option value="${m}" ${m === currentVal ? 'selected' : ''}>${m} এর জমা</option>`).join('');
+  }
+
+  const selectedMember = filterSelect ? filterSelect.value : 'ALL';
+  const history = [...(state.depositHistory || [])].reverse();
+
+  const filtered = selectedMember === 'ALL'
+    ? history
+    : history.filter(d => d.member === selectedMember);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted" style="padding: 24px;">
+          কোনো জমার রেকর্ড পাওয়া যায়নি।
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(d => {
+    return `
+      <tr>
+        <td><b>${d.date || 'তারিখ নেই'}</b></td>
+        <td><span class="badge badge-subtle">${d.member}</span></td>
+        <td class="text-right mono text-success"><b>+ ${formatBDT(d.amount)}</b></td>
+        <td><span class="text-muted text-sm">${d.note || '-'}</span></td>
+        ${isAdmin ? `
+          <td class="text-center admin-only-cell">
+            <button class="btn btn-ghost btn-sm text-danger" style="padding: 3px 8px; font-size: 0.85rem;" onclick="deleteDepositEntry('${d.id}')" title="এন্ট্রি মুছুন">
+              🗑️ ডিলিট
+            </button>
+          </td>
+        ` : `
+          <td class="admin-only-cell" style="display: none;"></td>
+        `}
+      </tr>
+    `;
+  }).join('');
+}
+
 function renderAll() {
   const metrics = calculateMetrics();
   renderKPIs(metrics);
@@ -990,6 +1103,7 @@ function renderAll() {
   renderSettlement(metrics);
   renderUserManagement();
   renderMonthSwitcher();
+  renderDepositHistoryTable();
   updateQuickDaySelect();
   updateAdminUI();
 }
@@ -1157,22 +1271,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isAdmin) return;
     const member = document.getElementById('depositMemberSelect').value;
     const amount = Number(document.getElementById('depositAmountInput').value);
-    const type = document.getElementById('depositTypeSelect').value;
+    const dateInput = document.getElementById('depositDateInput');
+    const noteInput = document.getElementById('depositNoteInput');
 
-    if (!member || isNaN(amount) || amount < 0) return;
+    const date = dateInput ? dateInput.value.trim() : '';
+    const note = noteInput ? noteInput.value.trim() : '';
 
-    if (!state.deposits) state.deposits = {};
-    const current = Number(state.deposits[member]) || 0;
-    if (type === 'add') {
-      state.deposits[member] = current + amount;
-      showToast(`${member}-এর জমার সাথে ৳${amount} যোগ হয়েছে`);
-    } else {
-      state.deposits[member] = amount;
-      showToast(`${member}-এর মোট জমা ৳${amount} নির্ধারণ করা হয়েছে`);
+    if (!member || isNaN(amount) || amount <= 0) {
+      showToast('সঠিক জমার পরিমাণ দিন');
+      return;
     }
+
+    ensureDepositHistory(state);
+
+    const newDeposit = {
+      id: Date.now(),
+      member,
+      amount,
+      date: date || (new Date().getDate() + ' ' + (state.monthBn || state.month || '')),
+      note: note || 'ফান্ড জমা'
+    };
+
+    state.depositHistory.push(newDeposit);
+    recalculateDepositsFromHistory();
 
     saveState();
     closeDepositModal();
+    renderAll();
+    showToast(`${member} এর ${formatBDT(amount)} ফান্ড জমা সফলভাবে রেকর্ড হয়েছে!`);
   });
 
   // Fixed Bill Modal
@@ -1536,5 +1662,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initial load
+  const depositHistoryFilter = document.getElementById('depositHistoryFilter');
+  if (depositHistoryFilter) {
+    depositHistoryFilter.addEventListener('change', () => {
+      renderDepositHistoryTable();
+    });
+  }
+
   renderAll();
 });
