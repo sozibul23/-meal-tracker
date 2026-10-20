@@ -500,13 +500,49 @@ function renderDashboard(metrics) {
           <span class="text-muted">খাবার মিল খরচ:</span>
           <span class="mono">৳${Math.round(m.mealCost).toLocaleString()} ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.65rem; padding:1px 4px;">০ মিল</span>' : `(${m.meals} মিল)`}</span>
         </div>
-        <div style="display: flex; justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
           <span class="text-muted">মেস সামগ্রীর ভাগ:</span>
-          <span class="mono">৳${Math.round(m.sharedCost).toLocaleString()} <span style="font-size:0.7rem; color:var(--text-muted);">(৪ জন)</span></span>
+          <div style="display: inline-flex; align-items: center; gap: 5px;">
+            <span class="mono">৳${Math.round(m.sharedCost).toLocaleString()}</span>
+            ${(() => {
+              if (!state.memberSharedStatus) state.memberSharedStatus = {};
+              const defaultS = (m.sharedPaid >= m.sharedCost && m.sharedCost > 0) ? 'Paid' : 'Due';
+              const sStatus = state.memberSharedStatus[m.name] || defaultS;
+              const isPaid = sStatus === 'Paid';
+              const sClass = isPaid ? 'badge-green' : 'badge-red';
+              const sText = isPaid ? 'পরিশোধিত' : 'বকেয়া';
+              return isAdmin ? `
+                <button class="badge ${sClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberSharedStatus('${m.name}')" title="ক্লিক করে মেস সামগ্রী স্ট্যাটাস পরিবর্তন করুন (পরিশোধিত / বকেয়া)">
+                  ${sText} ⟳
+                </button>
+              ` : `
+                <span class="badge ${sClass}" style="font-size: 0.65rem; padding: 1px 6px;">${sText}</span>
+              `;
+            })()}
+          </div>
         </div>
-        <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.06);">
-          <span class="text-muted">ভাড়া ও বিল ভাগ:</span>
-          <span class="mono" style="color: #38bdf8; font-weight: 600;">৳${Math.round(m.utilityTotal).toLocaleString()} ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.65rem; padding:1px 4px; color:#38bdf8; background: rgba(56,189,248,0.15);">বুয়া বাদে</span>' : ''}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-top: 1px solid var(--border-color);">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span class="text-muted">ভাড়া ও বিল ভাগ:</span>
+            ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.62rem; padding:1px 4px; color:#38bdf8; background: rgba(56,189,248,0.12);">বুয়া বাদে</span>' : ''}
+          </div>
+          <div style="display: inline-flex; align-items: center; gap: 5px;">
+            <span class="mono" style="color: #38bdf8; font-weight: 700;">৳${Math.round(m.utilityTotal).toLocaleString()}</span>
+            ${(() => {
+              if (!state.memberBillStatus) state.memberBillStatus = {};
+              const bStatus = state.memberBillStatus[m.name] || 'Due';
+              const isPaid = bStatus === 'Paid';
+              const bClass = isPaid ? 'badge-green' : 'badge-red';
+              const bText = isPaid ? 'পরিশোধিত' : 'বকেয়া';
+              return isAdmin ? `
+                <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberBillStatus('${m.name}')" title="ক্লিক করে ভাড়া ও বিল স্ট্যাটাস পরিবর্তন করুন (পরিশোধিত / বকেয়া)">
+                  ${bText} ⟳
+                </button>
+              ` : `
+                <span class="badge ${bClass}" style="font-size: 0.65rem; padding: 1px 6px;">${bText}</span>
+              `;
+            })()}
+          </div>
         </div>
       </div>
     `;
@@ -950,14 +986,58 @@ function renderUtilities(metrics) {
         <div class="text-sm text-muted" style="line-height: 1.6;">
           ${billBreakdowns}
         </div>
-        <div class="member-breakdown" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color);">
+        <div class="member-breakdown" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
           <span>তার অংশের মোট বিল:</span>
-          <span class="mono" style="font-weight:700;">৳${myBillTotal.toFixed(2)}</span>
+          <div style="display: inline-flex; align-items: center; gap: 6px;">
+            <span class="mono" style="font-weight:700;">৳${myBillTotal.toFixed(2)}</span>
+            ${(() => {
+              if (!state.memberBillStatus) state.memberBillStatus = {};
+              const bStatus = state.memberBillStatus[m] || 'Due';
+              const isPaid = bStatus === 'Paid';
+              const bClass = isPaid ? 'badge-green' : 'badge-red';
+              const bText = isPaid ? 'পরিশোধিত' : 'বকেয়া';
+              return isAdmin ? `
+                <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberBillStatus('${m}')" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
+                  ${bText} ⟳
+                </button>
+              ` : `
+                <span class="badge ${bClass}" style="font-size: 0.65rem; padding: 1px 6px;">${bText}</span>
+              `;
+            })()}
+          </div>
         </div>
       </div>
     `;
   }).join('');
 }
+
+window.toggleMemberBillStatus = function(memberName) {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন স্ট্যাটাস পরিবর্তন করতে পারবেন');
+    return;
+  }
+  if (!state.memberBillStatus) state.memberBillStatus = {};
+  const current = state.memberBillStatus[memberName] || 'Due';
+  const next = current === 'Paid' ? 'Due' : 'Paid';
+  state.memberBillStatus[memberName] = next;
+  saveState();
+  renderAll();
+  showToast(`${memberName}-এর ভাড়া ও বিল: ${next === 'Paid' ? 'পরিশোধিত (Paid)' : 'বকেয়া (Due)'}`);
+};
+
+window.toggleMemberSharedStatus = function(memberName) {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন স্ট্যাটাস পরিবর্তন করতে পারবেন');
+    return;
+  }
+  if (!state.memberSharedStatus) state.memberSharedStatus = {};
+  const current = state.memberSharedStatus[memberName] || 'Due';
+  const next = current === 'Paid' ? 'Due' : 'Paid';
+  state.memberSharedStatus[memberName] = next;
+  saveState();
+  renderAll();
+  showToast(`${memberName}-এর মেস সামগ্রী: ${next === 'Paid' ? 'পরিশোধিত (Paid)' : 'বকেয়া (Due)'}`);
+};
 
 window.toggleBillStatus = function(id) {
   if (!isAdmin) return;
@@ -2384,7 +2464,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v13';
+  const LATEST_BUILD = '2026-10-20-v14';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
