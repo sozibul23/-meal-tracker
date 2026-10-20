@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>মিল ট্র্যাকার - Meal Tracker | স্মার্ট মেস ও মিল খাতা</title>
   <meta name="description" content="ব্যাচেলর মেসের মিল, বাজার খরচ ও বিলের ক্রিয়েটিভ ও মিনিমাল ডিজিটাল খাতা।">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <meta name="theme-color" content="#0f172a">
@@ -13,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.0.8">
 </head>
 <body>
 
@@ -47,6 +50,14 @@
         <!-- Install PWA App Button -->
         <button id="pwaInstallBtn" class="btn btn-outline btn-sm" style="display: none;" title="মোবাইলে ইনস্টল করুন">
           📲 ইনস্টল করুন
+        </button>
+        <!-- App Reload / Refresh Button -->
+        <button id="forceReloadBtn" class="btn btn-icon" onclick="forceAppReload()" title="অ্যাপ রিফ্রেশ ও নতুন আপডেট" style="color: var(--accent);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
         </button>
 
         <!-- Theme Toggle (Light / Dark) -->
@@ -883,8 +894,8 @@
   <!-- Firebase Compat Scripts -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js"></script>
-  <script src="app.js"></script>
+  <script src="firebase.js?v=1.0.8"></script>
+  <script src="app.js?v=1.0.8"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">

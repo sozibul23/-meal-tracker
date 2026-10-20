@@ -2007,3 +2007,26 @@ function copyFallback(text) {
   }
   document.body.removeChild(ta);
 }
+
+
+window.forceAppReload = function() {
+  showToast('🔄 অ্যাপ আপডেট ও রিফ্রেশ হচ্ছে...');
+  if (window.caches) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
+  setTimeout(() => {
+    window.location.href = window.location.origin + window.location.pathname + '?t=' + Date.now();
+  }, 250);
+};
+
+// Auto update on new build
+(function checkAppBuild() {
+  const LATEST_BUILD = '2026-10-20-v8';
+  const current = localStorage.getItem('meal_tracker_build');
+  if (current !== LATEST_BUILD) {
+    localStorage.setItem('meal_tracker_build', LATEST_BUILD);
+    if (current && window.location.search.indexOf('t=') === -1) {
+      window.location.replace(window.location.origin + window.location.pathname + '?t=' + Date.now());
+    }
+  }
+})();
