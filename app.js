@@ -466,6 +466,10 @@ function renderDashboard(metrics) {
   metrics.memberSummaries.forEach(m => {
     const card = document.createElement('div');
     card.className = 'member-card';
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('title', `ক্লিক করে ${m.name}-এর বিস্তারিত হিসাব দেখুন`);
+    card.onclick = () => window.openMemberDetailsModal(m.name);
 
     const isPositive = m.balance > 0.01;
     const isNegative = m.balance < -0.01;
@@ -476,14 +480,6 @@ function renderDashboard(metrics) {
     const isOverallPaid = overallStatus === 'Paid';
     const overallClass = isOverallPaid ? 'badge-green' : 'badge-red';
     const overallText = isOverallPaid ? 'Paid' : 'Pending';
-
-    const statusBadge = isAdmin ? `
-      <button class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;" onclick="toggleMemberOverallStatus('${m.name}')" title="ক্লিক করে মেম্বার পেমেন্ট স্ট্যাটাস পরিবর্তন করুন (Paid / Pending)">
-        ${overallText} ⟳
-      </button>
-    ` : `
-      <span class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;">${overallText}</span>
-    `;
 
     const balanceText = isPositive
       ? `+ ৳${Math.round(m.balance).toLocaleString()}`
@@ -502,7 +498,7 @@ function renderDashboard(metrics) {
             <div class="member-meals-sub">${m.meals} মিল</div>
           </div>
         </div>
-        ${statusBadge}
+        <span class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;">${overallText}</span>
       </div>
 
       <div class="member-balance-box">
@@ -510,67 +506,9 @@ function renderDashboard(metrics) {
         <span class="balance-num ${balanceClass}">${balanceText}</span>
       </div>
 
-      <div class="member-breakdown-details" style="display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="text-muted">মোট জমা:</span>
-          <span class="mono">
-            <b>৳${Math.round(m.totalDeposit).toLocaleString()}</b>
-            ${isAdmin ? `<button class="btn btn-sm btn-ghost" style="padding:0 4px; margin-left: 4px;" onclick="openQuickDeposit('${m.name}')" title="ক্যাশ জমা এন্ট্রি">✎</button>` : ''}
-          </span>
-        </div>
-        ${m.sharedPaid > 0 ? `
-          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #a855f7; padding-left: 6px;">
-            <span>↳ ক্যাশ ৳${Math.round(m.cashDeposit).toLocaleString()} + মেস সামগ্রী +৳${Math.round(m.sharedPaid).toLocaleString()}</span>
-          </div>
-        ` : ''}
-        <div style="display: flex; justify-content: space-between;">
-          <span class="text-muted">খাবার মিল খরচ:</span>
-          <span class="mono">৳${Math.round(m.mealCost).toLocaleString()} ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.65rem; padding:1px 4px;">০ মিল</span>' : `(${m.meals} মিল)`}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="text-muted">মেস সামগ্রীর ভাগ:</span>
-          <div style="display: inline-flex; align-items: center; gap: 5px;">
-            <span class="mono">৳${Math.round(m.sharedCost).toLocaleString()}</span>
-            ${(() => {
-              if (!state.memberSharedStatus) state.memberSharedStatus = {};
-              const defaultS = (m.sharedPaid >= m.sharedCost && m.sharedCost > 0) ? 'Paid' : 'Pending';
-              const sStatus = state.memberSharedStatus[m.name] || defaultS;
-              const isPaid = sStatus === 'Paid';
-              const sClass = isPaid ? 'badge-green' : 'badge-red';
-              const sText = isPaid ? 'Paid' : 'Pending';
-              return isAdmin ? `
-                <button class="badge ${sClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberSharedStatus('${m.name}')" title="ক্লিক করে মেস সামগ্রী স্ট্যাটাস পরিবর্তন করুন (পরিশোধিত / বকেয়া)">
-                  ${sText} ⟳
-                </button>
-              ` : `
-                <span class="badge ${sClass}" style="font-size: 0.65rem; padding: 1px 6px;">${sText}</span>
-              `;
-            })()}
-          </div>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-top: 1px solid var(--border-color);">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <span class="text-muted">ভাড়া ও বিল ভাগ:</span>
-            ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.62rem; padding:1px 4px; color:#38bdf8; background: rgba(56,189,248,0.12);">বুয়া বাদে</span>' : ''}
-          </div>
-          <div style="display: inline-flex; align-items: center; gap: 5px;">
-            <span class="mono" style="color: #38bdf8; font-weight: 700;">৳${Math.round(m.utilityTotal).toLocaleString()}</span>
-            ${(() => {
-              if (!state.memberBillStatus) state.memberBillStatus = {};
-              const bStatus = state.memberBillStatus[m.name] || 'Pending';
-              const isPaid = bStatus === 'Paid';
-              const bClass = isPaid ? 'badge-green' : 'badge-red';
-              const bText = isPaid ? 'Paid' : 'Pending';
-              return isAdmin ? `
-                <button class="badge ${bClass}" style="cursor: pointer; border: none; font-size: 0.65rem; padding: 1px 6px;" onclick="toggleMemberBillStatus('${m.name}')" title="ক্লিক করে ভাড়া ও বিল স্ট্যাটাস পরিবর্তন করুন (পরিশোধিত / বকেয়া)">
-                  ${bText} ⟳
-                </button>
-              ` : `
-                <span class="badge ${bClass}" style="font-size: 0.65rem; padding: 1px 6px;">${bText}</span>
-              `;
-            })()}
-          </div>
-        </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.75rem;">
+        <span class="text-muted">জমা: <b class="mono" style="color:var(--text-main);">৳${Math.round(m.totalDeposit).toLocaleString()}</b></span>
+        <span class="member-tap-hint">বিস্তারিত দেখুন →</span>
       </div>
     `;
     container.appendChild(card);
@@ -2512,7 +2450,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v16';
+  const LATEST_BUILD = '2026-10-20-v17';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -2521,3 +2459,183 @@ window.forceAppReload = function() {
     }
   }
 })();
+
+
+// Backdrop click to close memberDetailsModal
+document.addEventListener('DOMContentLoaded', () => {
+  const memberModal = document.getElementById('memberDetailsModal');
+  if (memberModal) {
+    memberModal.addEventListener('click', (e) => {
+      if (e.target === memberModal) window.closeMemberDetailsModal();
+    });
+  }
+});
+
+
+// Member Details Pop Up Modal
+window.openMemberDetailsModal = function(memberName) {
+  const metrics = calculateMetrics();
+  const m = metrics.memberSummaries.find(s => s.name === memberName);
+  if (!m) return;
+
+  const modal = document.getElementById('memberDetailsModal');
+  if (!modal) return;
+
+  // Header info
+  const avatarEl = document.getElementById('modalMemberAvatar');
+  if (avatarEl) {
+    avatarEl.textContent = m.name.charAt(0);
+  }
+  const nameEl = document.getElementById('modalMemberName');
+  if (nameEl) nameEl.textContent = m.name;
+  
+  const subEl = document.getElementById('modalMemberSub');
+  if (subEl) subEl.textContent = `মোট মিল: ${m.meals} টি • ব্যক্তিগত হিসাব`;
+
+  // Status computation
+  const isPositive = m.balance > 0.01;
+  const isNegative = m.balance < -0.01;
+
+  if (!state.memberOverallStatus) state.memberOverallStatus = {};
+  const overallStatus = state.memberOverallStatus[m.name] || (isNegative ? 'Pending' : 'Paid');
+  const isOverallPaid = overallStatus === 'Paid';
+  const overallClass = isOverallPaid ? 'badge-green' : 'badge-red';
+  const overallText = isOverallPaid ? 'Paid' : 'Pending';
+
+  const balanceText = isPositive
+    ? `+ ৳${Math.round(m.balance).toLocaleString()}`
+    : isNegative
+      ? `- ৳${Math.round(Math.abs(m.balance)).toLocaleString()}`
+      : `৳০`;
+  const balanceStatusTitle = isPositive ? 'মেস থেকে ফেরত পাবেন' : isNegative ? 'মেসের ফান্ডে দিতে হবে' : 'হিসাব সম্পন্ন';
+
+  // Shared supplies status
+  if (!state.memberSharedStatus) state.memberSharedStatus = {};
+  const defaultS = (m.sharedPaid >= m.sharedCost && m.sharedCost > 0) ? 'Paid' : 'Pending';
+  const sStatus = state.memberSharedStatus[m.name] || defaultS;
+  const isSharedPaid = sStatus === 'Paid';
+  const sClass = isSharedPaid ? 'badge-green' : 'badge-red';
+  const sText = isSharedPaid ? 'Paid' : 'Pending';
+
+  // Bill status
+  if (!state.memberBillStatus) state.memberBillStatus = {};
+  const bStatus = state.memberBillStatus[m.name] || 'Pending';
+  const isBillPaid = bStatus === 'Paid';
+  const bClass = isBillPaid ? 'badge-green' : 'badge-red';
+  const bText = isBillPaid ? 'Paid' : 'Pending';
+
+  const bodyEl = document.getElementById('modalMemberBody');
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <!-- Top Hero Balance Card in Modal -->
+      <div style="background: var(--bg-muted); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span class="text-sm text-muted" style="display: block; margin-bottom: 2px;">${balanceStatusTitle}</span>
+          <span class="mono" style="font-size: 1.6rem; font-weight: 800; color: ${isPositive ? 'var(--accent)' : isNegative ? 'var(--danger)' : 'var(--text-main)'};">
+            ${balanceText}
+          </span>
+        </div>
+        <div style="text-align: right;">
+          <span class="text-muted" style="font-size: 0.72rem; display: block; margin-bottom: 4px;">পেমেন্ট স্ট্যাটাস</span>
+          ${isAdmin ? `
+            <button class="badge ${overallClass}" style="font-weight: 800; font-size: 0.75rem; padding: 3px 9px; cursor: pointer; border: none;" onclick="toggleMemberOverallStatus('${m.name}'); openMemberDetailsModal('${m.name}');" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
+              ${overallText} ⟳
+            </button>
+          ` : `
+            <span class="badge ${overallClass}" style="font-weight: 800; font-size: 0.75rem; padding: 3px 9px;">${overallText}</span>
+          `}
+        </div>
+      </div>
+
+      <!-- Detailed Breakdown Items -->
+      <div style="display: flex; flex-direction: column; gap: 9px; font-size: 0.85rem;">
+        <!-- Total Deposit -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 11px 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600;">💰 মোট ফান্ড জমা</span>
+            <span class="mono" style="font-weight: 800; font-size: 0.95rem;">৳${Math.round(m.totalDeposit).toLocaleString()}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+            <span>ক্যাশ জমা: ৳${Math.round(m.cashDeposit).toLocaleString()}</span>
+            ${m.sharedPaid > 0 ? `<span style="color: #a855f7;">+ মেস সামগ্রী: ৳${Math.round(m.sharedPaid).toLocaleString()}</span>` : ''}
+          </div>
+        </div>
+
+        <!-- Meal Cost -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 11px 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600;">🍲 খাবার মিল খরচ</span>
+            <span class="mono" style="font-weight: 800; font-size: 0.95rem;">৳${Math.round(m.mealCost).toLocaleString()}</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+            ${m.name === 'Imam' ? '০ মিল খরচ (ইমাম সাহেব ফ্রি)' : `${m.meals} টি মিল × মিল রেট ৳${metrics.mealRate.toFixed(2)}`}
+          </div>
+        </div>
+
+        <!-- Shared Mess Supplies -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 11px 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-weight: 600;">🧼 মেস সামগ্রীর ভাগ</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">(হারপিক, তেল, টিস্যু ইত্যাদি)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="mono" style="font-weight: 800; font-size: 0.95rem;">৳${Math.round(m.sharedCost).toLocaleString()}</span>
+              ${isAdmin ? `
+                <button class="badge ${sClass}" style="font-size: 0.68rem; padding: 2px 7px; cursor: pointer; border: none;" onclick="toggleMemberSharedStatus('${m.name}'); openMemberDetailsModal('${m.name}');" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
+                  ${sText} ⟳
+                </button>
+              ` : `
+                <span class="badge ${sClass}" style="font-size: 0.68rem; padding: 2px 7px;">${sText}</span>
+              `}
+            </div>
+          </div>
+          ${m.sharedPaid > 0 ? `
+            <div style="font-size: 0.75rem; color: #a855f7; margin-top: 4px;">
+              ✓ নিজ পকেটে মেস সামগ্রী কিনেছেন: ৳${Math.round(m.sharedPaid).toLocaleString()}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Rent & Utilities -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 11px 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="font-weight: 600;">🏠 বাসা ভাড়া ও বিল</span>
+                ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.62rem; padding:1px 4px; color:#38bdf8; background: rgba(56,189,248,0.12);">বুয়া বাদে</span>' : ''}
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">(ভাড়া, বুয়া, বিদ্যুৎ, ওয়াইফাই)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="mono" style="font-weight: 800; font-size: 0.95rem; color: #38bdf8;">৳${Math.round(m.utilityTotal).toLocaleString()}</span>
+              ${isAdmin ? `
+                <button class="badge ${bClass}" style="font-size: 0.68rem; padding: 2px 7px; cursor: pointer; border: none;" onclick="toggleMemberBillStatus('${m.name}'); openMemberDetailsModal('${m.name}');" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
+                  ${bText} ⟳
+                </button>
+              ` : `
+                <span class="badge ${bClass}" style="font-size: 0.68rem; padding: 2px 7px;">${bText}</span>
+              `}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const actionEl = document.getElementById('modalMemberAdminAction');
+  if (actionEl) {
+    actionEl.innerHTML = isAdmin ? `
+      <button type="button" class="btn btn-primary btn-sm" onclick="closeMemberDetailsModal(); openQuickDeposit('${m.name}');">
+        + টাকা জমা দিন
+      </button>
+    ` : '';
+  }
+
+  modal.classList.add('open');
+};
+
+window.closeMemberDetailsModal = function() {
+  const modal = document.getElementById('memberDetailsModal');
+  if (modal) modal.classList.remove('open');
+};

@@ -514,9 +514,37 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 18px 18px;
+  padding: 16px 16px;
   box-shadow: var(--shadow-sm);
   box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  user-select: none;
+}
+
+.member-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.member-card:active {
+  transform: scale(0.985);
+}
+
+.member-tap-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.member-card:hover .member-tap-hint {
+  color: var(--accent);
 }
 
 .member-card-head {

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.1.6">
+  <link rel="stylesheet" href="style.css?v=1.1.7">
 </head>
 <body>
 
@@ -910,6 +910,29 @@
     </div>
   </div>
 
+    <!-- Member Details Pop Up Modal -->
+  <div class="modal" id="memberDetailsModal">
+    <div class="modal-box" style="max-width: 460px;">
+      <div class="modal-head">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="member-avatar" id="modalMemberAvatar" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #04140d;">A</div>
+          <div>
+            <h3 id="modalMemberName" style="margin: 0; font-size: 1.12rem;">সদস্যের নাম</h3>
+            <span class="text-muted text-sm" id="modalMemberSub" style="font-size: 0.75rem;">বিস্তারিত হিসাব বিবরণী</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="closeMemberDetailsModalBtn" onclick="closeMemberDetailsModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalMemberBody" style="padding: 14px 0 6px 0;">
+        <!-- Dynamic member details content -->
+      </div>
+      <div class="modal-foot" style="display: flex; justify-content: space-between; align-items: center;">
+        <div id="modalMemberAdminAction"></div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeMemberDetailsModal()">বন্ধ করুন</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Minimal Toast -->
   <div class="toast" id="toast"></div>
 
@@ -921,7 +944,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.8"></script>
-  <script src="app.js?v=1.1.6"></script>
+  <script src="app.js?v=1.1.7"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
