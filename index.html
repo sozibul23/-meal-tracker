@@ -168,57 +168,41 @@
 
       <!-- Optimal Debt Settlement Highlight -->
       <div class="card settlement-box">
-        <div class="settlement-header">
-          <h3>💡 কার থেকে কে টাকা নেবে (সরাসরি লেনদেন)</h3>
-          <span class="badge badge-subtle">সহজ হিসাব</span>
+        <div class="settlement-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h3>💡 কার থেকে কে টাকা নেবে (সরাসরি লেনদেন)</h3>
+            <span class="badge badge-subtle">সহজ হিসাব</span>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="copyMessSummaryToClipboard()" style="gap: 6px; font-weight: 700; border-color: rgba(212, 249, 56, 0.4); color: var(--accent);">
+            📋 গ্রুপে হিসাব কপি
+          </button>
         </div>
         <div id="dashboardSettlementSnippet" class="settlement-snippet">
           হিসাব লোড হচ্ছে...
         </div>
       </div>
 
-      <!-- 2 Column Section -->
-      <div class="two-col-grid" style="margin-top: 24px;">
-        <div class="card">
-          <div class="card-title-row">
-            <h3>সাম্প্রতিক বাজার তালিকা</h3>
-            <button class="btn btn-ghost btn-sm" onclick="switchTab('bazar')">সব দেখুন →</button>
+      <!-- Home Dashboard Activity Section (Pills: Recent Bazar, Deposit, Stats) -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-title-row" style="margin-bottom: 14px; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
+          <div class="segmented-pill-group">
+            <button class="pill-btn active" id="pillBazarBtn" onclick="switchHomeTab('bazar')">🛒 সাম্প্রতিক বাজার</button>
+            <button class="pill-btn" id="pillDepositBtn" onclick="switchHomeTab('deposit')">💰 ফান্ড জমা</button>
+            <button class="pill-btn" id="pillStatsBtn" onclick="switchHomeTab('stats')">📊 ব্যয়ের ভাগ</button>
           </div>
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>তারিখ</th>
-                  <th>সদস্য</th>
-                  <th>বিবরণ</th>
-                  <th class="text-right">টাকা</th>
-                  <th class="text-center admin-only-cell" style="width: 85px; display: none;">অ্যাকশন</th>
-                </tr>
-              </thead>
-              <tbody id="dashboardRecentBazar"></tbody>
-            </table>
-          </div>
+          <button class="btn btn-ghost btn-sm" id="homeViewAllBtn" onclick="switchTab('bazar')">সব দেখুন →</button>
         </div>
 
-        <div class="card">
-          <div class="card-title-row">
-            <h3>বাজার ব্যয়ের শতাংশ</h3>
-            <span class="badge" id="bazarTotalBadge">মোট ৳৪,২৭৭</span>
-          </div>
-          <div id="shopperProgressList" class="shopper-progress-list">
+        <!-- Section 1: Recent Bazar List -->
+        <div id="homeSectionBazar" class="home-tab-section">
+          <div id="dashboardRecentBazar" class="modern-tx-list">
             <!-- Rendered by JS -->
           </div>
         </div>
-      </div>
-    
-      <!-- Deposit History Card -->
-      <div class="card" style="margin-top: 24px;">
-        <div class="card-title-row" style="flex-wrap: wrap; gap: 12px;">
-          <div>
-            <h3>💰 ফান্ড জমার বিস্তারিত ইতিহাস ও ট্র্যাকিং</h3>
-            <p class="text-muted text-sm">কোন দিন কোন সদস্য কত টাকা জমা দিয়েছেন তার সম্পূর্ণ তালিকা</p>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+
+        <!-- Section 2: Deposit History List -->
+        <div id="homeSectionDeposit" class="home-tab-section" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <select id="depositHistoryFilter" class="input input-sm" style="width: auto; padding: 4px 10px;">
               <option value="ALL">সকল সদস্যের জমা</option>
             </select>
@@ -226,24 +210,23 @@
               + নতুন জমা যোগ করুন
             </button>
           </div>
+          <div id="depositHistoryContainer" class="modern-tx-list">
+            <!-- Rendered by JS -->
+          </div>
         </div>
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th style="width: 150px;">জমার তারিখ</th>
-                <th>সদস্যের নাম</th>
-                <th class="text-right">টাকার পরিমাণ</th>
-                <th>মাধ্যম / বিবরণ</th>
-                <th class="text-center admin-only-cell" style="width: 85px; display: none;">অ্যাকশন</th>
-              </tr>
-            </thead>
-            <tbody id="depositHistoryTableBody">
-              <!-- Rendered by JS -->
-            </tbody>
-          </table>
+
+        <!-- Section 3: Shopper Progress (ব্যয়ের ভাগ) -->
+        <div id="homeSectionStats" class="home-tab-section" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span class="text-sm text-muted">সদস্য অনুযায়ী মোট জমা ও শতকরা অনুপাত</span>
+            <span class="badge" id="bazarTotalBadge">মোট ৳০</span>
+          </div>
+          <div id="shopperProgressList" class="shopper-progress-list">
+            <!-- Rendered by JS -->
+          </div>
         </div>
       </div>
+
 
     </section>
 

@@ -375,54 +375,82 @@ function renderDashboard(metrics) {
     const card = document.createElement('div');
     card.className = 'member-card';
 
-    const statusBadge = m.balance > 0.01 
-      ? `<span class="badge badge-green">পাবেন</span>` 
-      : m.balance < -0.01 
-        ? `<span class="badge badge-red">দিতে হবে</span>` 
-        : `<span class="badge">ব্যালেন্স ০</span>`;
+    const isPositive = m.balance > 0.01;
+    const isNegative = m.balance < -0.01;
+    const statusBadge = isPositive 
+      ? `<span class="badge badge-green">পাবে</span>` 
+      : isNegative 
+        ? `<span class="badge badge-red">দেবে</span>` 
+        : `<span class="badge">ক্লিয়ার</span>`;
+
+    const balanceText = isPositive
+      ? `+ ৳${Math.round(m.balance).toLocaleString()}`
+      : isNegative
+        ? `- ৳${Math.round(Math.abs(m.balance)).toLocaleString()}`
+        : `৳০`;
+
+    const balanceClass = isPositive ? 'surplus' : isNegative ? 'due' : 'neutral';
 
     card.innerHTML = `
-      <div class="member-head">
+      <div class="member-card-head">
         <div class="member-info">
           <div class="member-avatar">${m.name.charAt(0)}</div>
           <div>
             <div class="member-name">${m.name}</div>
-            <div class="member-meals-sub">মোট মিল: <b>${m.meals}</b> টি</div>
+            <div class="member-meals-sub">${m.meals} মিল</div>
           </div>
         </div>
         ${statusBadge}
       </div>
 
       <div class="member-balance-box">
-        <span class="text-sm text-muted">${m.balance >= 0 ? 'পাওনা টাকা (ফান্ড ফেরত)' : 'বকেয়া টাকা (ফান্ডে জমা)'}</span>
-        <span class="balance-num ${m.status}">${formatBDT(m.balance, true)}</span>
+        <span class="text-sm text-muted">${isPositive ? 'ফেরত পাবে' : isNegative ? 'দিতে হবে' : 'ব্যালেন্স'}</span>
+        <span class="balance-num ${balanceClass}">${balanceText}</span>
       </div>
 
       <div class="member-breakdown">
-        <span>ফান্ডে জমা: <b class="mono">${formatBDT(m.deposit)}</b> ${isAdmin ? `<button class="btn btn-sm btn-ghost" style="padding:0 4px;" onclick="openQuickDeposit('${m}')" title="জমা এডিট করুন">✎</button>` : ''}</span>
-        <span>খাবার খরচ: <b class="mono">${formatBDT(m.mealCost)}</b></span>
+        <span>জমা: <b class="mono">৳${Math.round(m.deposit).toLocaleString()}</b> ${isAdmin ? `<button class="btn btn-sm btn-ghost" style="padding:0 4px;" onclick="openQuickDeposit('${m.name}')" title="জমা এন্ট্রি">✎</button>` : ''}</span>
+        <span>খরচ: <b class="mono">৳${Math.round(m.mealCost).toLocaleString()}</b></span>
       </div>
     `;
     container.appendChild(card);
   });
 
-  // Recent Bazar List
-  const recentTable = document.getElementById('dashboardRecentBazar');
-  const recentItems = state.bazar.slice(-5).reverse();
-  recentTable.innerHTML = recentItems.map(b => `
-    <tr>
-      <td class="mono text-muted text-sm">${b.date || '#' + b.id}</td>
-      <td><b>${b.shopper}</b></td>
-      <td>${b.item}</td>
-      <td class="text-right mono"><b>৳${b.amount}</b></td>
-      <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
-        <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
-          <button class="btn-action-edit" onclick="openEditBazarModal(${b.id})" title="এডিট করুন">✏️</button>
-          <button class="btn-action-delete" onclick="deleteBazar(${b.id})" title="মুছে ফেলুন">🗑️</button>
+  // Recent Bazar List (Modern Card Items)
+  const recentContainer = document.getElementById('dashboardRecentBazar');
+  if (recentContainer) {
+    const recentItems = state.bazar.slice(-5).reverse();
+    if (recentItems.length === 0) {
+      recentContainer.innerHTML = `
+        <div class="text-center text-muted" style="padding: 20px; font-size: 0.85rem;">
+          এখনো কোনো বাজার খরচ যোগ করা হয়নি
         </div>
-      </td>
-    </tr>
-  `).join('');
+      `;
+    } else {
+      recentContainer.innerHTML = recentItems.map(b => `
+        <div class="tx-card-item">
+          <div class="tx-card-left">
+            <div class="tx-avatar-chip">${b.shopper.charAt(0)}</div>
+            <div class="tx-details">
+              <div class="tx-title">${b.item}</div>
+              <div class="tx-sub">
+                <span><b>${b.shopper}</b></span> • <span>${b.date || 'October'}</span>
+              </div>
+            </div>
+          </div>
+          <div class="tx-card-right">
+            <span class="tx-amount">৳${Number(b.amount).toLocaleString()}</span>
+            ${isAdmin ? `
+              <div class="tx-actions">
+                <button class="btn-action-edit" onclick="openEditBazarModal(${b.id})" title="এডিট করুন">✏️</button>
+                <button class="btn-action-delete" onclick="deleteBazar(${b.id})" title="মুছে ফেলুন">🗑️</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
 
   // Fund Contribution Progress
   const shopperList = document.getElementById('shopperProgressList');
@@ -1095,9 +1123,9 @@ window.deleteDepositEntry = function(depositId) {
 };
 
 function renderDepositHistoryTable() {
-  const tbody = document.getElementById('depositHistoryTableBody');
+  const container = document.getElementById('depositHistoryContainer');
   const filterSelect = document.getElementById('depositHistoryFilter');
-  if (!tbody) return;
+  if (!container) return;
 
   ensureDepositHistory(state);
 
@@ -1115,32 +1143,34 @@ function renderDepositHistoryTable() {
     : history.filter(d => d.member === selectedMember);
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="5" class="text-center text-muted" style="padding: 24px;">
-          কোনো জমার রেকর্ড পাওয়া যায়নি।
-        </td>
-      </tr>
+    container.innerHTML = `
+      <div class="text-center text-muted" style="padding: 20px; font-size: 0.85rem;">
+        কোনো জমার রেকর্ড পাওয়া যায়নি
+      </div>
     `;
     return;
   }
 
-  tbody.innerHTML = filtered.map(d => {
-    return `
-      <tr>
-        <td><b>${d.date || 'তারিখ নেই'}</b></td>
-        <td><span class="badge badge-subtle">${d.member}</span></td>
-        <td class="text-right mono text-success"><b>+ ${formatBDT(d.amount)}</b></td>
-        <td><span class="text-muted text-sm">${d.note || '-'}</span></td>
-        <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
-          <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+  container.innerHTML = filtered.slice(0, 10).map(d => `
+    <div class="tx-card-item">
+      <div class="tx-card-left">
+        <div class="tx-avatar-chip" style="background: rgba(74, 222, 128, 0.15); color: #4ade80;">💰</div>
+        <div class="tx-details">
+          <div class="tx-title">${d.member} ${d.note ? `<span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">• ${d.note}</span>` : ''}</div>
+          <div class="tx-sub"><span>${d.date || 'তারিখ নেই'}</span></div>
+        </div>
+      </div>
+      <div class="tx-card-right">
+        <span class="tx-amount positive">+ ৳${Number(d.amount).toLocaleString()}</span>
+        ${isAdmin ? `
+          <div class="tx-actions">
             <button class="btn-action-edit" onclick="openEditDepositModal('${d.id}')" title="এডিট করুন">✏️</button>
             <button class="btn-action-delete" onclick="deleteDepositEntry('${d.id}')" title="মুছে ফেলুন">🗑️</button>
           </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
 }
 
 function renderAll() {
@@ -1871,3 +1901,84 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderAll();
 });
+
+
+window.switchHomeTab = function(tab) {
+  const secBazar = document.getElementById('homeSectionBazar');
+  const secDeposit = document.getElementById('homeSectionDeposit');
+  const secStats = document.getElementById('homeSectionStats');
+
+  const btnBazar = document.getElementById('pillBazarBtn');
+  const btnDeposit = document.getElementById('pillDepositBtn');
+  const btnStats = document.getElementById('pillStatsBtn');
+  const viewAllBtn = document.getElementById('homeViewAllBtn');
+
+  if (btnBazar) btnBazar.classList.toggle('active', tab === 'bazar');
+  if (btnDeposit) btnDeposit.classList.toggle('active', tab === 'deposit');
+  if (btnStats) btnStats.classList.toggle('active', tab === 'stats');
+
+  if (secBazar) secBazar.style.display = tab === 'bazar' ? 'block' : 'none';
+  if (secDeposit) secDeposit.style.display = tab === 'deposit' ? 'block' : 'none';
+  if (secStats) secStats.style.display = tab === 'stats' ? 'block' : 'none';
+
+  if (viewAllBtn) {
+    if (tab === 'bazar') {
+      viewAllBtn.style.display = 'inline-flex';
+      viewAllBtn.onclick = () => switchTab('bazar');
+      viewAllBtn.textContent = 'সব বাজার →';
+    } else {
+      viewAllBtn.style.display = 'none';
+    }
+  }
+};
+
+window.copyMessSummaryToClipboard = function() {
+  const metrics = calculateMetrics();
+  let msg = `📋 মেস মিল হিসাব - ${state.monthBn || state.month}\\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━\\n`;
+  msg += `⚡ মিল রেট: ৳${metrics.mealRate.toFixed(2)}\\n`;
+  msg += `🛒 মোট বাজার: ৳${Math.round(metrics.totalBazar).toLocaleString()} | 🍲 মোট মিল: ${metrics.totalMeals.toFixed(1)}\\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━\\n`;
+  msg += `📊 মেম্বারদের ফাইনাল ব্যালেন্স:\\n`;
+  metrics.memberSummaries.forEach(m => {
+    const status = m.balance > 0.01
+      ? `পাবে ➔ +৳${Math.round(m.balance).toLocaleString()}`
+      : m.balance < -0.01
+        ? `দেবে ➔ -৳${Math.round(Math.abs(m.balance)).toLocaleString()}`
+        : `ক্লিয়ার (৳০)`;
+    msg += `• ${m.name} (${m.meals} মিল): ${status}\\n`;
+  });
+  if (metrics.settlementTransfers && metrics.settlementTransfers.length > 0) {
+    msg += `━━━━━━━━━━━━━━━━━━━━━\\n`;
+    msg += `🤝 সরাসরি লেনদেন:\\n`;
+    metrics.settlementTransfers.forEach(t => {
+      msg += `👉 ${t.from} দিবে ${t.to}-কে ৳${Math.round(t.amount).toLocaleString()}\\n`;
+    });
+  }
+  msg += `━━━━━━━━━━━━━━━━━━━━━\\n`;
+  msg += `_মিল ট্র্যাকার অ্যাপ থেকে জেনারেট করা_`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg).then(() => {
+      showToast('✅ হিসাব কপি হয়েছে! মেসেঞ্জার বা হোয়াটসঅ্যাপে পেস্ট করুন');
+    }).catch(() => {
+      copyFallback(msg);
+    });
+  } else {
+    copyFallback(msg);
+  }
+};
+
+function copyFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('✅ হিসাব কপি হয়েছে! মেসেঞ্জার বা হোয়াটসঅ্যাপে পেস্ট করুন');
+  } catch (e) {
+    showToast('কপি করা সম্ভব হয়নি');
+  }
+  document.body.removeChild(ta);
+}
