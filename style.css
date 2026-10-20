@@ -1015,9 +1015,60 @@ body {
     margin-top: 3px;
   }
 
+  /* Member Cards: 2 per row for super minimal and space-saving mobile view */
   .members-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .member-card {
+    padding: 12px 10px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .member-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .member-name {
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+  }
+
+  .member-card-head {
+    margin-bottom: 6px !important;
+    gap: 6px !important;
+  }
+
+  .member-meals-sub {
+    font-size: 0.68rem !important;
+  }
+
+  .member-balance-box {
+    margin: 6px 0 6px !important;
+  }
+
+  .member-balance-box .text-sm {
+    font-size: 0.65rem !important;
+    line-height: 1.1 !important;
+    display: block !important;
+  }
+
+  .balance-num {
+    font-size: 1.25rem !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .member-breakdown {
+    font-size: 0.7rem !important;
+    padding-top: 6px !important;
+    margin-top: 6px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
   }
 
   .card {
