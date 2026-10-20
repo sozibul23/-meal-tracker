@@ -2585,7 +2585,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v19';
+  const LATEST_BUILD = '2026-10-20-v20';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);

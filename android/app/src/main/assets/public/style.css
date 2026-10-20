@@ -567,20 +567,24 @@ body {
 }
 
 .member-card:nth-child(4n+1) .member-avatar {
-  background: linear-gradient(135deg, #d4f938 0%, #a3e635 100%);
-  color: #0a0c0f;
+  background: linear-gradient(135deg, #e4ff54 0%, #cbf528 100%);
+  color: #080b03;
+  box-shadow: 0 4px 12px rgba(203, 245, 40, 0.35), inset 0 1px 1px #ffffff;
 }
 .member-card:nth-child(4n+2) .member-avatar {
   background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-  color: #0a0c0f;
+  color: #080b03;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35), inset 0 1px 1px #ffffff;
 }
 .member-card:nth-child(4n+3) .member-avatar {
   background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
-  color: #0a0c0f;
+  color: #080b03;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 1px #ffffff;
 }
 .member-card:nth-child(4n+4) .member-avatar {
   background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
-  color: #0a0c0f;
+  color: #080b03;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.35), inset 0 1px 1px #ffffff;
 }
 
 .member-name {
