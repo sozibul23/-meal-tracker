@@ -1194,7 +1194,11 @@ window.switchTab = function(tabName) {
     btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
   document.querySelectorAll('.floating-dock .dock-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabName);
+    if (tabName === 'utilities' && btn.dataset.tab === 'settlement') {
+      btn.classList.add('active');
+    } else {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    }
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === `tab-${tabName}`);
@@ -1477,6 +1481,7 @@ document.addEventListener('DOMContentLoaded', () => {
     billModal.classList.add('open');
   };
   const closeBillModal = () => billModal.classList.remove('open');
+  window.openBillModalGlobal = openBillModal;
 
   const openBillBtn = document.getElementById('openAddBillBtn');
   if (openBillBtn) openBillBtn.addEventListener('click', openBillModal);
@@ -1846,6 +1851,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const quickSheetMealBtn = document.getElementById('quickSheetMealBtn');
   const quickSheetBazarBtn = document.getElementById('quickSheetBazarBtn');
   const quickSheetDepositBtn = document.getElementById('quickSheetDepositBtn');
+  const quickSheetBillBtn = document.getElementById('quickSheetBillBtn');
+  if (quickSheetBillBtn) {
+    quickSheetBillBtn.addEventListener('click', () => {
+      closeQuickActionSheet();
+      openBillModal();
+    });
+  }
 
   const closeQuickActionSheet = () => {
     if (quickSheet) quickSheet.classList.remove('open');
@@ -1906,19 +1918,23 @@ document.addEventListener('DOMContentLoaded', () => {
 window.switchHomeTab = function(tab) {
   const secBazar = document.getElementById('homeSectionBazar');
   const secDeposit = document.getElementById('homeSectionDeposit');
+  const secBills = document.getElementById('homeSectionBills');
   const secStats = document.getElementById('homeSectionStats');
 
   const btnBazar = document.getElementById('pillBazarBtn');
   const btnDeposit = document.getElementById('pillDepositBtn');
+  const btnBills = document.getElementById('pillBillsBtn');
   const btnStats = document.getElementById('pillStatsBtn');
   const viewAllBtn = document.getElementById('homeViewAllBtn');
 
   if (btnBazar) btnBazar.classList.toggle('active', tab === 'bazar');
   if (btnDeposit) btnDeposit.classList.toggle('active', tab === 'deposit');
+  if (btnBills) btnBills.classList.toggle('active', tab === 'bills');
   if (btnStats) btnStats.classList.toggle('active', tab === 'stats');
 
   if (secBazar) secBazar.style.display = tab === 'bazar' ? 'block' : 'none';
   if (secDeposit) secDeposit.style.display = tab === 'deposit' ? 'block' : 'none';
+  if (secBills) secBills.style.display = tab === 'bills' ? 'block' : 'none';
   if (secStats) secStats.style.display = tab === 'stats' ? 'block' : 'none';
 
   if (viewAllBtn) {
@@ -1926,6 +1942,10 @@ window.switchHomeTab = function(tab) {
       viewAllBtn.style.display = 'inline-flex';
       viewAllBtn.onclick = () => switchTab('bazar');
       viewAllBtn.textContent = 'সব বাজার →';
+    } else if (tab === 'bills') {
+      viewAllBtn.style.display = 'inline-flex';
+      viewAllBtn.onclick = () => switchTab('utilities');
+      viewAllBtn.textContent = 'সব বিল ও বিস্তারিত →';
     } else {
       viewAllBtn.style.display = 'none';
     }

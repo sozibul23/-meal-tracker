@@ -186,8 +186,9 @@
       <div class="card" style="margin-top: 20px;">
         <div class="card-title-row" style="margin-bottom: 14px; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
           <div class="segmented-pill-group">
-            <button class="pill-btn active" id="pillBazarBtn" onclick="switchHomeTab('bazar')">🛒 সাম্প্রতিক বাজার</button>
+            <button class="pill-btn active" id="pillBazarBtn" onclick="switchHomeTab('bazar')">🛒 বাজার</button>
             <button class="pill-btn" id="pillDepositBtn" onclick="switchHomeTab('deposit')">💰 ফান্ড জমা</button>
+            <button class="pill-btn" id="pillBillsBtn" onclick="switchHomeTab('bills')">🏠 ভাড়া ও বিল</button>
             <button class="pill-btn" id="pillStatsBtn" onclick="switchHomeTab('stats')">📊 ব্যয়ের ভাগ</button>
           </div>
           <button class="btn btn-ghost btn-sm" id="homeViewAllBtn" onclick="switchTab('bazar')">সব দেখুন →</button>
@@ -212,6 +213,26 @@
           </div>
           <div id="depositHistoryContainer" class="modern-tx-list">
             <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Section: Fixed Bills (বাসা ভাড়া, বুয়া, ওয়াইফাই ইত্যাদি) -->
+        <div id="homeSectionBills" class="home-tab-section" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span class="text-sm text-muted">মাসিক বাসা ভাড়া, বুয়া ও ইউটিলিটি বিল</span>
+            </div>
+            <button class="btn btn-outline btn-sm admin-only-btn" style="display: none;" onclick="window.openBillModalGlobal && window.openBillModalGlobal()">
+              + নতুন বিল যোগ করুন
+            </button>
+          </div>
+          <div id="dashboardBillsContainer" class="modern-tx-list">
+            <!-- Rendered by JS -->
+          </div>
+          <div style="margin-top: 14px; text-align: right;">
+            <button class="btn btn-ghost btn-sm" onclick="switchTab('utilities')">
+              সদস্যভিত্তিক মাথাপিছু বিলের বিস্তারিত দেখুন →
+            </button>
           </div>
         </div>
 
@@ -315,6 +336,14 @@
 
     <!-- TAB 4: RENT & UTILITIES -->
     <section class="tab-pane" id="tab-utilities">
+      <div class="segmented-pill-group" style="margin-bottom: 20px; display: flex; width: 100%; max-width: 440px; margin-left: auto; margin-right: auto;">
+        <button class="pill-btn" onclick="switchTab('settlement')" style="flex: 1; text-align: center;">
+          💳 মিল ও লেনদেন হিসাব
+        </button>
+        <button class="pill-btn active" onclick="switchTab('utilities')" style="flex: 1; text-align: center;">
+          🏠 বাসা ভাড়া ও ইউটিলিটি বিল
+        </button>
+      </div>
       <div class="pane-header">
         <div>
           <h2>বাসা ভাড়া ও ইউটিলিটি বিল</h2>
@@ -381,6 +410,14 @@
 
     <!-- TAB 5: SMART SETTLEMENT -->
     <section class="tab-pane" id="tab-settlement">
+      <div class="segmented-pill-group" style="margin-bottom: 20px; display: flex; width: 100%; max-width: 440px; margin-left: auto; margin-right: auto;">
+        <button class="pill-btn active" onclick="switchTab('settlement')" style="flex: 1; text-align: center;">
+          💳 মিল ও লেনদেন হিসাব
+        </button>
+        <button class="pill-btn" onclick="switchTab('utilities')" style="flex: 1; text-align: center;">
+          🏠 বাসা ভাড়া ও ইউটিলিটি বিল
+        </button>
+      </div>
       <div class="pane-header">
         <div>
           <h2>হিসাব নিষ্পত্তি ও দেনা-পাওনা</h2>
@@ -894,6 +931,14 @@
           <div class="sheet-action-text">
             <b>ফান্ডে টাকা জমা</b>
             <span>সদস্যের জমার পরিমাণ যোগ করুন</span>
+          </div>
+        </button>
+
+        <button class="sheet-action-item" id="quickSheetBillBtn">
+          <div class="sheet-action-icon" style="background:rgba(192,132,252,0.15); color:#c084fc;">🏠</div>
+          <div class="sheet-action-text">
+            <b>বাসা ভাড়া / বুয়া / বিল যোগ</b>
+            <span>ভাড়া, ওয়াইফাই বা বুয়া বিল এন্ট্রি করুন</span>
           </div>
         </button>
       </div>
