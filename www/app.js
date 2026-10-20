@@ -1113,6 +1113,9 @@ window.switchTab = function(tabName) {
   document.querySelectorAll('.nav-list .nav-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
+  document.querySelectorAll('.floating-dock .dock-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === `tab-${tabName}`);
   });
@@ -1212,6 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bazarModal.classList.add('open');
   };
   const closeBazarModal = () => bazarModal.classList.remove('open');
+  window.openBazarModalGlobal = openBazarModal;
 
   document.getElementById('openAddBazarBtn').addEventListener('click', openBazarModal);
   document.getElementById('closeBazarModalBtn').addEventListener('click', closeBazarModal);
@@ -1666,6 +1670,72 @@ document.addEventListener('DOMContentLoaded', () => {
   if (depositHistoryFilter) {
     depositHistoryFilter.addEventListener('change', () => {
       renderDepositHistoryTable();
+    });
+  }
+
+  
+  // Floating Dock tab clicks
+  document.querySelectorAll('.floating-dock .dock-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Quick Action Sheet
+  const quickFab = document.getElementById('quickActionFab');
+  const quickSheet = document.getElementById('quickActionSheet');
+  const closeQuickSheetBtn = document.getElementById('closeQuickSheetBtn');
+  const quickSheetMealBtn = document.getElementById('quickSheetMealBtn');
+  const quickSheetBazarBtn = document.getElementById('quickSheetBazarBtn');
+  const quickSheetDepositBtn = document.getElementById('quickSheetDepositBtn');
+
+  const closeQuickActionSheet = () => {
+    if (quickSheet) quickSheet.classList.remove('open');
+  };
+
+  if (quickFab && quickSheet) {
+    quickFab.addEventListener('click', () => {
+      quickSheet.classList.toggle('open');
+    });
+  }
+
+  if (closeQuickSheetBtn) {
+    closeQuickSheetBtn.addEventListener('click', closeQuickActionSheet);
+  }
+
+  if (quickSheet) {
+    quickSheet.addEventListener('click', (e) => {
+      if (e.target === quickSheet) closeQuickActionSheet();
+    });
+  }
+
+  if (quickSheetMealBtn) {
+    quickSheetMealBtn.addEventListener('click', () => {
+      closeQuickActionSheet();
+      switchTab('meals');
+    });
+  }
+
+  if (quickSheetBazarBtn) {
+    quickSheetBazarBtn.addEventListener('click', () => {
+      closeQuickActionSheet();
+      if (!isAdmin) {
+        showToast('বাজার খরচ যোগ করতে এডমিন লগইন করুন');
+        switchTab('bazar');
+        return;
+      }
+      if (window.openBazarModalGlobal) window.openBazarModalGlobal();
+      else switchTab('bazar');
+    });
+  }
+
+  if (quickSheetDepositBtn) {
+    quickSheetDepositBtn.addEventListener('click', () => {
+      closeQuickActionSheet();
+      if (!isAdmin) {
+        showToast('টাকা জমা এন্ট্রি করতে এডমিন লগইন করুন');
+        return;
+      }
+      if (window.openDepositModalGlobal) window.openDepositModalGlobal();
+      else switchTab('dashboard');
     });
   }
 
