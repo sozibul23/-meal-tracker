@@ -159,13 +159,23 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
   const freshDeposits = {};
   membersList.forEach(m => freshDeposits[m] = 0);
 
-  const defaultBills = [
-    { id: 1, title: 'বাসা ভাড়া (Room Rent)', amount: 0, status: 'Due', note: 'সকল সদস্যের মাঝে ভাগ' },
-    { id: 2, title: 'খালা / বাবুর্চি বিল (Cook Bill)', amount: 0, status: 'Due', note: 'সকল সদস্যের মাঝে ভাগ' },
-    { id: 3, title: 'ওয়াইফাই বিল (WiFi Bill)', amount: 0, status: 'Due', note: 'সকল সদস্যের মাঝে ভাগ' },
-    { id: 4, title: 'গ্যাস / সিলিন্ডার বিল (Gas Bill)', amount: 0, status: 'Due', note: 'সকল সদস্যের মাঝে ভাগ' },
-    { id: 5, title: 'ময়লা বিল (Dust/Waste)', amount: 0, status: 'Due', note: 'সকল সদস্যের মাঝে ভাগ' }
-  ];
+  let defaultBills = [];
+  if (typeof state !== 'undefined' && state && Array.isArray(state.fixedBills) && state.fixedBills.length > 0) {
+    defaultBills = state.fixedBills.map((b, idx) => ({
+      id: Date.now() + idx,
+      title: b.title,
+      amount: b.amount,
+      splitCount: b.splitCount || ((b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'))) ? 3 : 4),
+      status: 'Due',
+      note: b.note || ''
+    }));
+  } else {
+    defaultBills = [
+      { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Due', note: '৪ জনের সমান ভাগ' },
+      { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Due', note: '৪ জনের সমান ভাগ' },
+      { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Due', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
+    ];
+  }
 
   return {
     month: enName,
@@ -303,26 +313,45 @@ function calculateMetrics() {
   const perMemberSharedCost = state.members.length > 0 ? (totalSharedBazar / state.members.length) : 0;
 
   const memberSummaries = state.members.map(name => {
-    const deposit = Number(state.deposits[name]) || 0;
+    const cashDeposit = Number(state.deposits[name]) || 0;
     const meals = memberMeals[name] || 0;
     const mealCost = meals * mealRate;
-    const foodBalance = deposit - mealCost;
 
     const sharedPaid = memberSharedPaid[name] || 0;
     const sharedBalance = sharedPaid - perMemberSharedCost;
 
-    // Final Net Balance = (Deposit - Food Meal Cost) + (Shared Items Paid - Shared Item Equal Share)
-    const balance = foodBalance + sharedBalance;
+    // Total credited into member account = Cash Deposit + Extra Mess Bazar Paid
+    const totalDeposit = cashDeposit + sharedPaid;
+    // Total mess cost for member = Food Meal Cost + Shared Item Share
+    const totalMessCost = mealCost + perMemberSharedCost;
+
+    // Final Net Balance = Total Deposit - Total Mess Cost
+    const balance = totalDeposit - totalMessCost;
+
+    // Calculate this member's share across fixed utility bills
+    let utilityTotal = 0;
+    (state.fixedBills || []).forEach(b => {
+      const isExcluded = (b.note && b.note.includes('৩ জনের') && name === 'Imam') ||
+                         (b.splitCount < state.members.length && name === 'Imam') ||
+                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && name === 'Imam');
+      const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+      utilityTotal += share;
+    });
 
     return {
       name,
       meals,
-      deposit,
-      mealCost,
-      foodBalance,
+      cashDeposit,
       sharedPaid,
+      sharedCost: perMemberSharedCost,
+      totalDeposit,
+      mealCost,
+      totalCost: totalMessCost,
+      deposit: totalDeposit,
+      foodBalance: cashDeposit - mealCost,
       sharedBalance,
       balance,
+      utilityTotal,
       status: balance > 0.01 ? 'positive' : balance < -0.01 ? 'negative' : 'neutral'
     };
   });
@@ -454,9 +483,31 @@ function renderDashboard(metrics) {
         <span class="balance-num ${balanceClass}">${balanceText}</span>
       </div>
 
-      <div class="member-breakdown">
-        <span>জমা: <b class="mono">৳${Math.round(m.deposit).toLocaleString()}</b> ${isAdmin ? `<button class="btn btn-sm btn-ghost" style="padding:0 4px;" onclick="openQuickDeposit('${m.name}')" title="জমা এন্ট্রি">✎</button>` : ''}</span>
-        <span>খরচ: <b class="mono">৳${Math.round(m.mealCost).toLocaleString()}</b></span>
+      <div class="member-breakdown-details" style="display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="text-muted">মোট জমা:</span>
+          <span class="mono">
+            <b>৳${Math.round(m.totalDeposit).toLocaleString()}</b>
+            ${isAdmin ? `<button class="btn btn-sm btn-ghost" style="padding:0 4px; margin-left: 4px;" onclick="openQuickDeposit('${m.name}')" title="ক্যাশ জমা এন্ট্রি">✎</button>` : ''}
+          </span>
+        </div>
+        ${m.sharedPaid > 0 ? `
+          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #a855f7; padding-left: 6px;">
+            <span>↳ ক্যাশ ৳${Math.round(m.cashDeposit).toLocaleString()} + মেস সামগ্রী +৳${Math.round(m.sharedPaid).toLocaleString()}</span>
+          </div>
+        ` : ''}
+        <div style="display: flex; justify-content: space-between;">
+          <span class="text-muted">খাবার মিল খরচ:</span>
+          <span class="mono">৳${Math.round(m.mealCost).toLocaleString()} ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.65rem; padding:1px 4px;">০ মিল</span>' : `(${m.meals} মিল)`}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span class="text-muted">মেস সামগ্রীর ভাগ:</span>
+          <span class="mono">৳${Math.round(m.sharedCost).toLocaleString()} <span style="font-size:0.7rem; color:var(--text-muted);">(৪ জন)</span></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <span class="text-muted">ভাড়া ও বিল ভাগ:</span>
+          <span class="mono" style="color: #38bdf8; font-weight: 600;">৳${Math.round(m.utilityTotal).toLocaleString()} ${m.name === 'Imam' ? '<span class="badge" style="font-size:0.65rem; padding:1px 4px; color:#38bdf8; background: rgba(56,189,248,0.15);">বুয়া বাদে</span>' : ''}</span>
+        </div>
       </div>
     `;
     container.appendChild(card);
@@ -836,10 +887,12 @@ function renderUtilities(metrics) {
     const billBreakdowns = state.fixedBills.map(b => {
       // If note mentions 3 persons (and Imam), Imam is excluded
       const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
-                         (b.splitCount < state.members.length && m === 'Imam');
+                         (b.splitCount < state.members.length && m === 'Imam') ||
+                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
       const share = isExcluded ? 0 : (b.amount / (b.splitCount || state.members.length));
       myBillTotal += share;
-      return `${b.title.split(' ')[0]}: ৳${share.toFixed(0)}`;
+      const titleShort = b.title.split(' ')[0];
+      return isExcluded ? `${titleShort}: ৳০ (মুক্ত)` : `${titleShort}: ৳${share.toFixed(0)}`;
     }).join(' • ');
 
     return `
@@ -1177,6 +1230,30 @@ function updateQuickDaySelect() {
     <option value="${d}" ${d === currentVal ? 'selected' : ''}>${d} তারিখ</option>
   `).join('');
 }
+
+window.deleteCurrentMonth = function() {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন মাস ডিলিট করতে পারবেন');
+    return;
+  }
+  if (allMonths.length <= 1) {
+    showToast('কমপক্ষে একটি মাস থাকা আবশ্যক, এটি মুছা যাবে না');
+    return;
+  }
+  const currentMeta = allMonths.find(m => m.id === currentMonthId);
+  const name = currentMeta ? (currentMeta.label || currentMeta.name) : currentMonthId;
+  if (confirm(`সতর্কতা! আপনি কি নিশ্চিতভাবে "${name}" মাসের পুরো খাতা ও সকল হিসাব মুছে ফেলতে চান?`)) {
+    try {
+      localStorage.removeItem(getStorageKeyForMonth(currentMonthId));
+    } catch(e) {}
+    allMonths = allMonths.filter(m => m.id !== currentMonthId);
+    saveMonthsList();
+    const targetId = allMonths[allMonths.length - 1].id;
+    currentMonthId = '';
+    switchMonth(targetId);
+    showToast(`"${name}" মাস সফলভাবে মুছে ফেলা হয়েছে`);
+  }
+};
 
 window.switchMonth = function(monthId) {
   if (monthId === currentMonthId) return;
@@ -2187,7 +2264,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v9';
+  const LATEST_BUILD = '2026-10-20-v10';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
