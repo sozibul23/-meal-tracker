@@ -1,9 +1,12 @@
-name: Build Android APK
+name: Build Android APK and Deploy Web
 
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,6 +30,12 @@ jobs:
         run: |
           npm install
           npx cap sync android
+
+      - name: Deploy Web to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: www
+          branch: gh-pages
 
       - name: Grant Execute Permission
         run: chmod +x ./android/gradlew
