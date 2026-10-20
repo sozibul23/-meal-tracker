@@ -1180,6 +1180,99 @@ window.openEditBillModal = function(id) {
   if (modal) modal.classList.add('open');
 };
 
+
+function renderSharedItems() {
+  const tbody = document.getElementById('sharedItemsBody');
+  const totalEl = document.getElementById('sharedItemsTotal');
+  if (!state.sharedItems) state.sharedItems = [];
+
+  const total = state.sharedItems.reduce((acc, cur) => acc + Number(cur.price || 0), 0);
+  if (totalEl) totalEl.textContent = `মোট: ${formatBDT(total)}`;
+
+  if (!tbody) return;
+
+  if (state.sharedItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding: 20px;">কোনো মেস সামগ্রী খরচের রেকর্ড নেই</td></tr>';
+    return;
+  }
+
+  const perPerson = state.members.length > 0 ? (total / state.members.length) : 0;
+
+  tbody.innerHTML = state.sharedItems.map(item => `
+    <tr>
+      <td><b>${item.name}</b></td>
+      <td><span class="badge badge-subtle">${item.buyer}</span></td>
+      <td class="text-right mono">${formatBDT(item.price)}</td>
+      <td class="text-right mono">~${formatBDT(perPerson)}</td>
+      <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
+        <button class="btn-action-delete" onclick="deleteSharedItem(${item.id})" title="মুছে ফেলুন">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderDashboardBills() {
+  const container = document.getElementById('dashboardBillsContainer');
+  if (!container) return;
+
+  const bills = state.fixedBills || [];
+
+  const pillBills = document.getElementById('pillBillsBtn');
+  if (pillBills) {
+    pillBills.textContent = `🏠 ভাড়া ও বিল (${bills.length})`;
+  }
+
+  if (bills.length === 0) {
+    container.innerHTML = `
+      <div class="text-center text-muted" style="padding: 28px 16px; font-size: 0.88rem;">
+        কোনো স্থায়ী বিল যোগ করা হয়নি<br>
+        ${isAdmin ? '<button class="btn btn-primary btn-sm" style="margin-top: 10px;" onclick="window.openBillModalGlobal && window.openBillModalGlobal()">+ নতুন বিল যোগ করুন</button>' : ''}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = bills.map(b => {
+    let icon = '🏠';
+    const tLower = (b.title || '').toLowerCase();
+    if (tLower.includes('wifi') || tLower.includes('ওয়াইফাই') || tLower.includes('নেট')) icon = '📶';
+    else if (tLower.includes('বুয়া') || tLower.includes('খালা') || tLower.includes('cook')) icon = '🧹';
+    else if (tLower.includes('বিদ্যুৎ') || tLower.includes('কারেন্ট') || tLower.includes('electric')) icon = '⚡';
+    else if (tLower.includes('গ্যাস') || tLower.includes('পানি') || tLower.includes('gas') || tLower.includes('water')) icon = '💧';
+
+    const avg = Number(b.amount) / (b.splitCount || state.members.length || 1);
+    const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
+    const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
+
+    return `
+      <div class="tx-card-item">
+        <div class="tx-card-left">
+          <div class="tx-avatar-chip" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">${icon}</div>
+          <div class="tx-details">
+            <div class="tx-title">
+              <b>${b.title}</b>
+              <span class="badge ${statusClass}" style="margin-left: 6px; font-size: 0.65rem; padding: 1px 6px;">${statusText}</span>
+            </div>
+            <div class="tx-sub">
+              <span>মাথাপিছু ভাগ: ~${formatBDT(avg)}</span>
+              ${b.note ? `<span>• ${b.note}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="tx-card-right">
+          <span class="tx-amount" style="font-weight: 800;">${formatBDT(b.amount)}</span>
+          ${isAdmin ? `
+            <div class="tx-actions">
+              <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
+              <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 window.deleteSharedItem = function(id) {
   if (!isAdmin) return;
   if (confirm('আপনি কি এই সামগ্রীর খরচ মুছে ফেলতে চান?')) {
@@ -1685,11 +1778,32 @@ function renderAll() {
   renderDashboard(metrics);
   renderMealsTable();
   renderBazarTable();
-  renderUtilities(metrics);
-  renderSettlement(metrics);
-  renderUserManagement();
+  try {
+    renderUtilities(metrics);
+  } catch (err) {
+    console.error('Error in renderUtilities:', err);
+  }
+  try {
+    renderSettlement(metrics);
+  } catch (err) {
+    console.error('Error in renderSettlement:', err);
+  }
+  try {
+    renderUserManagement();
+  } catch (err) {
+    console.error('Error in renderUserManagement:', err);
+  }
   renderMonthSwitcher();
-  renderDepositHistoryTable();
+  try {
+    renderDepositHistoryTable();
+  } catch (err) {
+    console.error('Error in renderDepositHistoryTable:', err);
+  }
+  try {
+    renderDashboardBills();
+  } catch (err) {
+    console.error('Error in renderDashboardBills:', err);
+  }
   updateQuickDaySelect();
   updateAdminUI();
 }
@@ -2506,6 +2620,12 @@ window.switchHomeTab = function(tab) {
   if (secBills) secBills.style.display = tab === 'bills' ? 'block' : 'none';
   if (secStats) secStats.style.display = tab === 'stats' ? 'block' : 'none';
 
+  if (tab === 'deposit') {
+    renderDepositHistoryTable();
+  } else if (tab === 'bills') {
+    renderDashboardBills();
+  }
+
   if (viewAllBtn) {
     if (tab === 'bazar') {
       viewAllBtn.style.display = 'inline-flex';
@@ -2585,7 +2705,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v21';
+  const LATEST_BUILD = '2026-10-20-v22';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
