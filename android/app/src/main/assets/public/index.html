@@ -392,6 +392,7 @@
                   <th class="text-right">মোট টাকা</th>
                   <th class="text-right">মাথাপিছু</th>
                   <th>স্ট্যাটাস</th>
+                  <th class="text-center admin-only-cell" style="width: 85px; display: none;">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody id="fixedBillsBody"></tbody>
@@ -401,6 +402,7 @@
                   <th class="text-right mono" id="totalFixedFoot">৳১৭,৩৯০</th>
                   <th class="text-right mono" id="avgFixedFoot">~৳৪,৪০৫.৮৩</th>
                   <th></th>
+                  <th class="admin-only-cell" style="display: none;"></th>
                 </tr>
               </tfoot>
             </table>
@@ -802,6 +804,7 @@
         <button class="modal-close-btn" id="closeBillModalBtn">&times;</button>
       </div>
       <form id="billForm">
+        <input type="hidden" id="billIdInput" value="">
         <div class="modal-body">
           <div class="form-field">
             <label for="billTitleInput">খাত বা বিলের নাম *</label>
@@ -909,7 +912,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.8"></script>
-  <script src="app.js?v=1.0.8"></script>
+  <script src="app.js?v=1.0.9"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">

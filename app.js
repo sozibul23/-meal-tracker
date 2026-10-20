@@ -746,16 +746,70 @@ function renderUtilities(metrics) {
             <span class="badge ${statusClass}">${statusText}</span>
           `}
         </td>
-        ${isAdmin ? `
-          <td class="text-center">
-            <button class="btn btn-sm btn-danger" onclick="deleteBill(${b.id})" title="বিল মুছুন">✕</button>
-          </td>
-        ` : ''}
+        <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
+          <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+            <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
+            <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join('');
 
   document.getElementById('totalFixedFoot').textContent = formatBDT(metrics.totalFixed);
+
+  // Render Home Dashboard Bills List
+  const dashBillsContainer = document.getElementById('dashboardBillsContainer');
+  if (dashBillsContainer) {
+    if (!state.fixedBills || state.fixedBills.length === 0) {
+      dashBillsContainer.innerHTML = `
+        <div class="text-center text-muted" style="padding: 20px; font-size: 0.85rem;">
+          কোনো মাসিক বিল এখনো যোগ করা হয়নি
+        </div>
+      `;
+    } else {
+      dashBillsContainer.innerHTML = state.fixedBills.map(b => {
+        const split = b.splitCount || state.members.length;
+        const avg = b.amount / split;
+        const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
+        const statusText = b.status === 'Paid' ? 'পরিশোধিত' : 'বকেয়া';
+        let icon = '🏠';
+        const tLower = (b.title || '').toLowerCase();
+        if (tLower.includes('wifi') || tLower.includes('ওয়াইফাই') || tLower.includes('নেট')) icon = '📶';
+        else if (tLower.includes('বুয়া') || tLower.includes('খালা') || tLower.includes('cook')) icon = '🧹';
+        else if (tLower.includes('বিদ্যুৎ') || tLower.includes('কারেন্ট') || tLower.includes('electric')) icon = '⚡';
+        else if (tLower.includes('গ্যাস') || tLower.includes('পানি') || tLower.includes('gas') || tLower.includes('water')) icon = '💧';
+        else if (tLower.includes('ময়লা') || tLower.includes('waste')) icon = '🗑️';
+
+        return `
+          <div class="tx-card-item">
+            <div class="tx-card-left">
+              <div class="tx-avatar-chip" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 1.1rem;">${icon}</div>
+              <div class="tx-details">
+                <div class="tx-title" style="display:flex; align-items:center; gap:6px;">
+                  <span>${b.title}</span>
+                  <span class="badge ${statusClass}" style="font-size:0.65rem; padding:1px 5px;">${statusText}</span>
+                </div>
+                <div class="tx-sub">
+                  <span>মাথাপিছু: <b>৳${avg.toFixed(2)}</b> (${split} জন)</span>
+                  ${b.note ? ` • <span>${b.note}</span>` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="tx-card-right">
+              <span class="tx-amount">৳${Number(b.amount).toLocaleString()}</span>
+              ${isAdmin ? `
+                <div class="tx-actions">
+                  <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
+                  <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
   document.getElementById('avgFixedFoot').textContent = `মাথাপিছু ~৳${(metrics.totalFixed / (state.members.length || 1)).toFixed(2)}`;
 
   // Shared Items
@@ -817,12 +871,40 @@ window.toggleBillStatus = function(id) {
 };
 
 window.deleteBill = function(id) {
-  if (!isAdmin) return;
-  if (confirm('আপনি কি এই বিলটি মুছে ফেলতে চান?')) {
-    state.fixedBills = state.fixedBills.filter(b => b.id !== id);
-    saveState();
-    showToast('বিল মুছে ফেলা হয়েছে');
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন ডিলিট করতে পারবেন');
+    return;
   }
+  const bill = state.fixedBills.find(b => String(b.id) === String(id));
+  const desc = bill ? `"${bill.title}" (${formatBDT(bill.amount)})` : 'এই বিলটি';
+  if (confirm(`আপনি কি নিশ্চিতভাবে ${desc} মুছে ফেলতে চান?`)) {
+    state.fixedBills = state.fixedBills.filter(b => String(b.id) !== String(id));
+    saveState();
+    renderAll();
+    showToast('মাসিক বিল সফলভাবে মুছে ফেলা হয়েছে');
+  }
+};
+
+window.openEditBillModal = function(id) {
+  if (!isAdmin) {
+    showToast('শুধুমাত্র এডমিন এডিট করতে পারবেন');
+    return;
+  }
+  const bill = state.fixedBills.find(b => String(b.id) === String(id));
+  if (!bill) {
+    showToast('বিল খুঁজে পাওয়া যায়নি');
+    return;
+  }
+  document.getElementById('billIdInput').value = bill.id;
+  document.getElementById('billModalHeading').textContent = '✏️ মাসিক বিল এডিট করুন';
+  document.getElementById('billTitleInput').value = bill.title || '';
+  document.getElementById('billAmountInput').value = bill.amount || '';
+  document.getElementById('billSplitCount').value = bill.splitCount || state.members.length;
+  document.getElementById('billStatusSelect').value = bill.status || 'Paid';
+  document.getElementById('billNoteInput').value = bill.note || '';
+
+  const modal = document.getElementById('billModal');
+  if (modal) modal.classList.add('open');
 };
 
 window.deleteSharedItem = function(id) {
@@ -1541,6 +1623,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     document.getElementById('billForm').reset();
+    const idInput = document.getElementById('billIdInput');
+    if (idInput) idInput.value = '';
+    const heading = document.getElementById('billModalHeading');
+    if (heading) heading.textContent = 'নতুন বিল এন্ট্রি (Rent / Utility)';
     document.getElementById('billSplitCount').value = state.members.length;
     billModal.classList.add('open');
   };
@@ -1556,13 +1642,33 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if (!isAdmin) return;
 
+    const billId = document.getElementById('billIdInput') ? document.getElementById('billIdInput').value : '';
     const title = document.getElementById('billTitleInput').value.trim();
     const amount = Number(document.getElementById('billAmountInput').value);
     const splitCount = Number(document.getElementById('billSplitCount').value) || state.members.length;
     const status = document.getElementById('billStatusSelect').value;
     const note = document.getElementById('billNoteInput').value.trim();
 
-    if (!title || !amount) return;
+    if (!title || isNaN(amount) || amount <= 0) {
+      showToast('সঠিক বিলের নাম ও পরিমাণ দিন');
+      return;
+    }
+
+    if (billId) {
+      const idx = state.fixedBills.findIndex(b => String(b.id) === String(billId));
+      if (idx !== -1) {
+        state.fixedBills[idx].title = title;
+        state.fixedBills[idx].amount = amount;
+        state.fixedBills[idx].splitCount = splitCount;
+        state.fixedBills[idx].status = status;
+        state.fixedBills[idx].note = note || `${splitCount} জনের ভাগ`;
+        saveState();
+        closeBillModal();
+        renderAll();
+        showToast(`বিল "${title}" সফলভাবে আপডেট করা হয়েছে!`);
+        return;
+      }
+    }
 
     state.fixedBills.push({
       id: Date.now(),
@@ -1575,7 +1681,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveState();
     closeBillModal();
-    showToast(`নতুন বিল "${title}" যোগ হয়েছে!`);
+    renderAll();
+    showToast(`নতুন বিল "${title}" সফলভাবে যোগ হয়েছে!`);
   });
 
   // Shared Supply Item Modal
@@ -2080,7 +2187,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v8';
+  const LATEST_BUILD = '2026-10-20-v9';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
