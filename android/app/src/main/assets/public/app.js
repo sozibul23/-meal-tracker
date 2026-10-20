@@ -992,51 +992,91 @@ function renderSettlement(metrics) {
     });
   }
 
-  // Detail Table
+  // Detail Table (Meal + Others Cost Comprehensive Breakdown)
   const tbody = document.getElementById('settlementDetailBody');
-  tbody.innerHTML = metrics.memberSummaries.map(m => `
-    <tr>
-      <td><b>${m.name}</b></td>
-      <td class="text-center mono"><b>${m.meals}</b></td>
-      <td class="text-right mono">${formatBDT(m.deposit)}</td>
-      <td class="text-right mono">${formatBDT(m.mealCost)}</td>
-      <td class="text-right mono ${m.status}" style="font-weight:700;">
-        ${formatBDT(m.balance, true)}
-      </td>
-      <td class="text-center">
-        ${m.balance > 0.01 
-          ? `<span class="badge badge-green">পাবেন</span>` 
-          : m.balance < -0.01 
-            ? `<span class="badge badge-red">দিতে হবে</span>` 
-            : `<span class="badge">ক্লিয়ার</span>`}
-      </td>
-    </tr>
-  `).join('');
+  if (tbody) {
+    tbody.innerHTML = metrics.memberSummaries.map(m => {
+      const isPositive = m.balance > 0.01;
+      const isNegative = m.balance < -0.01;
+      const statusBadge = isPositive 
+        ? `<span class="badge badge-green">পাবেন</span>` 
+        : isNegative 
+          ? `<span class="badge badge-red">দিতে হবে</span>` 
+          : `<span class="badge">ক্লিয়ার</span>`;
+
+      return `
+        <tr>
+          <td><b>${m.name}</b></td>
+          <td class="text-center mono"><b>${m.meals}</b></td>
+          <td class="text-right mono">৳${Math.round(m.cashDeposit).toLocaleString()}</td>
+          <td class="text-right mono">৳${Math.round(m.mealCost).toLocaleString()}</td>
+          <td class="text-right mono" style="color:#a855f7;">${m.sharedPaid > 0 ? `+৳${Math.round(m.sharedPaid).toLocaleString()}` : '৳০'}</td>
+          <td class="text-right mono text-muted">-৳${Math.round(m.sharedCost).toLocaleString()}</td>
+          <td class="text-right mono ${m.status}" style="font-weight:700;">
+            ${formatBDT(m.balance, true)}
+          </td>
+          <td class="text-right mono" style="color:#38bdf8; font-weight:600;">
+            ৳${Math.round(m.utilityTotal).toLocaleString()} ${m.name === 'Imam' ? '<span style="font-size:0.65rem;">(বুয়া মুক্ত)</span>' : ''}
+          </td>
+          <td class="text-center">${statusBadge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
 
   generateWhatsAppSummary(metrics);
 }
 
 function generateWhatsAppSummary(metrics) {
-  let msg = `📋 *মিল ট্র্যাকার (Meal Tracker) - মিল ও খরচ রিপোর্ট (${state.month})*\n`;
-  msg += `────────────────────────\n`;
-  msg += `🛒 মোট বাজার: ৳${metrics.totalBazar.toFixed(2)}\n`;
-  msg += `🍲 মোট মিল: ${metrics.totalMeals} টি\n`;
-  msg += `⚡ মিল রেট: ৳${metrics.mealRate.toFixed(2)}\n\n`;
+  let msg = `📋 *মিল ট্র্যাকার (Meal Tracker) - পূর্ণাঙ্গ মেস রিপোর্ট*\n`;
+  msg += `🗓️ *মাস:* ${state.monthBn || state.month}\n`;
+  msg += `────────────────────────\n\n`;
 
-  msg += `📊 *মেম্বারদের ব্যালেন্স:*\n`;
+  // 1. MEAL REPORT
+  msg += `🍚 *[ ১. খাবারের মিল হিসাব ]*\n`;
+  msg += `• মোট খাবার বাজার: ৳${metrics.totalFoodBazar.toFixed(2)}\n`;
+  msg += `• মোট মিল: ${metrics.totalMeals} টি\n`;
+  msg += `• মিল রেট: ৳${metrics.mealRate.toFixed(2)}\n`;
+  msg += `• সদস্যভিত্তিক মিল:\n`;
+  metrics.memberSummaries.forEach(m => {
+    msg += `  ▫️ *${m.name}*: ${m.meals} মিল | খাবার খরচ: ৳${Math.round(m.mealCost)} | ক্যাশ জমা: ৳${Math.round(m.cashDeposit)}\n`;
+  });
+  msg += `\n`;
+
+  // 2. OTHERS COST REPORT
+  msg += `🧴 *[ ২. অন্যান্য খরচ (মেস সামগ্রী ও বিল) ]*\n`;
+  msg += `• মেস সামগ্রী মোট: ৳${metrics.totalSharedBazar.toFixed(2)} (মাথাপিছু ৳${(metrics.totalSharedBazar / (state.members.length || 1)).toFixed(2)})\n`;
+  metrics.memberSummaries.forEach(m => {
+    if (m.sharedPaid > 0) {
+      msg += `  ▫️ *${m.name}* সামগ্রী কিনেছেন: ৳${Math.round(m.sharedPaid)}\n`;
+    }
+  });
+  msg += `• মাসিক স্থায়ী বিল (ভাড়া ও ইউটিলিটি):\n`;
+  (state.fixedBills || []).forEach(b => {
+    msg += `  ▫️ ${b.title}: ৳${Number(b.amount).toLocaleString()} (${b.splitCount || state.members.length} জনের ভাগ)\n`;
+  });
+  msg += `• সদস্যভিত্তিক বিল অংশ:\n`;
+  metrics.memberSummaries.forEach(m => {
+    msg += `  ▫️ *${m.name}*: ৳${Math.round(m.utilityTotal)} ${m.name === 'Imam' ? '(বুয়া বিল বাদে)' : ''}\n`;
+  });
+  msg += `\n`;
+
+  // 3. FINAL NET STATUS
+  msg += `📊 *[ ৩. মেসের চূড়ান্ত ব্যালেন্স (খাবার+সামগ্রী) ]*\n`;
   metrics.memberSummaries.forEach(m => {
     const statusText = m.balance > 0.01 
-      ? `পাবেন +৳${m.balance.toFixed(2)}` 
+      ? `ফেরত পাবেন +৳${m.balance.toFixed(2)}` 
       : m.balance < -0.01 
         ? `দিতে হবে -৳${Math.abs(m.balance).toFixed(2)}` 
         : `ব্যালেন্স ৳০`;
-    msg += `• *${m.name}*: মিল ${m.meals}টি ➔ ${statusText}\n`;
+    msg += `• *${m.name}*: ${statusText}\n`;
   });
 
-  msg += `\n🤝 *কে কাকে টাকা দেবে:*\n`;
+  // 4. TRANSFERS
+  msg += `\n🤝 *[ ৪. সরাসরি লেনদেন নির্দেশিকা ]*\n`;
   if (metrics.settlementTransfers.length > 0) {
     metrics.settlementTransfers.forEach(t => {
-      msg += `👉 *${t.from}* দিবে *${t.to}*-কে ৳${t.amount.toFixed(2)}\n`;
+      msg += `👉 *${t.from}* দেবেন ➔ *${t.to}*-কে ৳${t.amount.toFixed(2)}\n`;
     });
   } else {
     msg += `সব হিসাব ক্লিয়ার! ✅\n`;
@@ -1044,8 +1084,10 @@ function generateWhatsAppSummary(metrics) {
   msg += `────────────────────────\n`;
   msg += `_মিল ট্র্যাকার (Meal Tracker) দ্বারা জেনারেট করা।_`;
 
-  document.getElementById('whatsAppTextPreview').textContent = msg;
-  document.getElementById('openWhatsAppLink').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+  const previewEl = document.getElementById('whatsAppTextPreview');
+  if (previewEl) previewEl.textContent = msg;
+  const linkEl = document.getElementById('openWhatsAppLink');
+  if (linkEl) linkEl.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
 }
 
 // Render User Management Tab
@@ -2264,7 +2306,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v10';
+  const LATEST_BUILD = '2026-10-20-v11';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);

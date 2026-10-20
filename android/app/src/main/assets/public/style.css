@@ -1543,3 +1543,32 @@ body {
 .balance-num.neutral {
   color: var(--text-muted) !important;
 }
+
+
+/* Print Styling for Report */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .header, .floating-dock, .fab-btn, .pill-btn, .pane-actions, .month-actions, .modal, .modal-backdrop {
+    display: none !important;
+  }
+  .tab-pane {
+    display: block !important;
+  }
+  .card {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+  .table th, .table td {
+    color: #000 !important;
+    border-color: #ddd !important;
+  }
+  .badge {
+    border: 1px solid #999 !important;
+    color: #000 !important;
+  }
+}
