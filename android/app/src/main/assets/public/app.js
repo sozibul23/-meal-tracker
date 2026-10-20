@@ -236,7 +236,8 @@ function saveStateLocalOnly() {
 }
 
 // Helpers
-function formatBDT(amount, showPlus = false) {
+function formatBDT(amount,
+      category, showPlus = false) {
   const num = Number(amount) || 0;
   const prefix = num > 0 && showPlus ? '+' : '';
   return `${prefix}৳${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -244,8 +245,6 @@ function formatBDT(amount, showPlus = false) {
 
 // Calculate Metrics (Fund-based calculation)
 function calculateMetrics() {
-  const totalBazar = state.bazar.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
   if (!state.deposits) state.deposits = {};
   let totalDeposit = 0;
   state.members.forEach(m => {
@@ -253,7 +252,34 @@ function calculateMetrics() {
     totalDeposit += Number(state.deposits[m]) || 0;
   });
 
-  // Remaining Cash in Mess Fund
+  // Separate Food Bazar (for Meal Rate) vs Extra/Shared Mess Items (Equal Split)
+  let totalFoodBazar = 0;
+  let totalSharedBazar = 0;
+  const memberSharedPaid = {};
+  state.members.forEach(m => memberSharedPaid[m] = 0);
+
+  (state.bazar || []).forEach(item => {
+    const amt = Number(item.amount) || 0;
+    if (item.category === 'shared' || item.type === 'shared') {
+      totalSharedBazar += amt;
+      if (item.shopper && memberSharedPaid[item.shopper] !== undefined) {
+        memberSharedPaid[item.shopper] += amt;
+      }
+    } else {
+      totalFoodBazar += amt;
+    }
+  });
+
+  // Also include items from state.sharedItems if any
+  (state.sharedItems || []).forEach(item => {
+    const amt = Number(item.price) || 0;
+    totalSharedBazar += amt;
+    if (item.buyer && memberSharedPaid[item.buyer] !== undefined) {
+      memberSharedPaid[item.buyer] += amt;
+    }
+  });
+
+  const totalBazar = totalFoodBazar + totalSharedBazar;
   const remainingFund = totalDeposit - totalBazar;
 
   const memberMeals = {};
@@ -270,31 +296,46 @@ function calculateMetrics() {
     });
   }
 
-  const mealRate = totalMeals > 0 ? totalBazar / totalMeals : 0;
+  // Meal Rate is ONLY based on Food Bazar!
+  const mealRate = totalMeals > 0 ? totalFoodBazar / totalMeals : 0;
+
+  // Equal split per member for extra/shared mess items
+  const perMemberSharedCost = state.members.length > 0 ? (totalSharedBazar / state.members.length) : 0;
 
   const memberSummaries = state.members.map(name => {
     const deposit = Number(state.deposits[name]) || 0;
     const meals = memberMeals[name] || 0;
     const mealCost = meals * mealRate;
-    const balance = deposit - mealCost;
+    const foodBalance = deposit - mealCost;
+
+    const sharedPaid = memberSharedPaid[name] || 0;
+    const sharedBalance = sharedPaid - perMemberSharedCost;
+
+    // Final Net Balance = (Deposit - Food Meal Cost) + (Shared Items Paid - Shared Item Equal Share)
+    const balance = foodBalance + sharedBalance;
 
     return {
       name,
       meals,
       deposit,
       mealCost,
+      foodBalance,
+      sharedPaid,
+      sharedBalance,
       balance,
       status: balance > 0.01 ? 'positive' : balance < -0.01 ? 'negative' : 'neutral'
     };
   });
 
-  const totalFixed = state.fixedBills.reduce((s, b) => s + (Number(b.amount) || 0), 0);
-  const totalShared = state.sharedItems.reduce((s, b) => s + (Number(b.price) || 0), 0);
+  const totalFixed = (state.fixedBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
+  const totalShared = totalSharedBazar;
   const settlementTransfers = computeSettlement(memberSummaries);
 
   return {
     totalDeposit,
     totalBazar,
+    totalFoodBazar,
+    totalSharedBazar,
     remainingFund,
     totalMeals,
     mealRate,
@@ -353,7 +394,7 @@ function renderKPIs(metrics) {
   document.getElementById('kpiTotalDeposit').textContent = formatBDT(metrics.totalDeposit);
   document.getElementById('kpiDepositDesc').textContent = `${state.members.length} জন সদস্যের জমা`;
   document.getElementById('kpiTotalBazar').textContent = formatBDT(metrics.totalBazar);
-  document.getElementById('kpiBazarCount').textContent = `${state.bazar.length} টি বাজার এন্ট্রি`;
+  document.getElementById('kpiBazarCount').textContent = `খাবার: ${formatBDT(metrics.totalFoodBazar)} • মেস সামগ্রী: ${formatBDT(metrics.totalSharedBazar)}`;
   
   const remEl = document.getElementById('kpiRemainingFund');
   remEl.textContent = formatBDT(metrics.remainingFund);
@@ -437,7 +478,12 @@ function renderDashboard(metrics) {
           <div class="tx-card-left">
             <div class="tx-avatar-chip">${b.shopper.charAt(0)}</div>
             <div class="tx-details">
-              <div class="tx-title">${b.item}</div>
+              <div class="tx-title" style="display:flex; align-items:center; gap:6px;">
+                <span>${b.item}</span>
+                ${(b.category === 'shared' || b.type === 'shared') 
+                  ? `<span class="badge" style="background:rgba(192,132,252,0.15); color:#c084fc; font-size:0.65rem; padding:1px 5px;">🧴 মেস সামগ্রী</span>`
+                  : `<span class="badge" style="background:rgba(212,249,56,0.12); color:var(--accent); font-size:0.65rem; padding:1px 5px;">🍚 খাবার</span>`}
+              </div>
               <div class="tx-sub">
                 <span><b>${b.shopper}</b></span> • <span>${b.date || 'October'}</span>
               </div>
@@ -600,7 +646,13 @@ function renderBazarTable() {
     <tr>
       <td class="mono text-muted">${idx + 1}</td>
       <td><b>${b.shopper}</b></td>
-      <td>${b.item} <span class="text-dim text-sm">(${b.date || 'October'})</span></td>
+      <td>
+        ${b.item} 
+        ${(b.category === 'shared' || b.type === 'shared') 
+          ? `<span class="badge" style="background:rgba(192,132,252,0.15); color:#c084fc; font-size:0.65rem; padding:1px 5px;">🧴 মেস সামগ্রী</span>`
+          : `<span class="badge" style="background:rgba(212,249,56,0.12); color:var(--accent); font-size:0.65rem; padding:1px 5px;">🍚 খাবার</span>`}
+        <span class="text-dim text-sm">(${b.date || 'October'})</span>
+      </td>
       <td class="text-right mono"><b>${formatBDT(b.amount)}</b></td>
       <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
         <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
@@ -640,6 +692,8 @@ window.openEditBazarModal = function(id) {
   document.getElementById('editBazarDateInput').value = item.date || '';
   document.getElementById('editBazarItemInput').value = item.item || '';
   document.getElementById('editBazarAmountInput').value = item.amount || '';
+  const catSelect = document.getElementById('editBazarCategorySelect');
+  if (catSelect) catSelect.value = item.category || item.type || 'food';
 
   const modal = document.getElementById('editBazarModal');
   if (modal) modal.classList.add('open');
@@ -1329,6 +1383,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const date = document.getElementById('editBazarDateInput').value.trim();
       const item = document.getElementById('editBazarItemInput').value.trim();
       const amount = Number(document.getElementById('editBazarAmountInput').value);
+      const catEl = document.getElementById('editBazarCategorySelect');
+      const category = catEl ? catEl.value : 'food';
 
       if (!item || isNaN(amount) || amount <= 0) {
         showToast('সঠিক খরচ ও বিবরণ দিন');
@@ -1341,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.bazar[idx].date = date;
         state.bazar[idx].item = item;
         state.bazar[idx].amount = amount;
+        state.bazar[idx].category = category;
         saveState();
         closeEditBazarModal();
         renderAll();
@@ -1397,6 +1454,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopper = document.getElementById('modalShopperSelect').value;
     const item = document.getElementById('modalItemInput').value.trim();
     const amount = Number(document.getElementById('modalAmountInput').value);
+    const catEl = document.getElementById('modalBazarCategorySelect');
+    const category = catEl ? catEl.value : 'food';
 
     if (!item || !amount) return;
 
