@@ -683,8 +683,13 @@ function renderBazarTable() {
     state.members.map(m => `<option value="${m}">${m}</option>`).join('');
   shopperSelect.value = currentVal;
 
+  const categorySelect = document.getElementById('bazarCategoryFilter');
+  const selectedCategory = categorySelect ? categorySelect.value : 'ALL';
+
   let filtered = state.bazar.filter(b => {
     if (selectedShopper !== 'all' && b.shopper !== selectedShopper) return false;
+    if (selectedCategory === 'food' && (b.category === 'shared' || b.type === 'shared')) return false;
+    if (selectedCategory === 'shared' && !(b.category === 'shared' || b.type === 'shared')) return false;
     if (search && !b.item.toLowerCase().includes(search) && !b.shopper.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -863,21 +868,62 @@ function renderUtilities(metrics) {
   }
   document.getElementById('avgFixedFoot').textContent = `মাথাপিছু ~৳${(metrics.totalFixed / (state.members.length || 1)).toFixed(2)}`;
 
-  // Shared Items
+  // Combined Shared Items (Bazar extra supplies + direct shared items)
   const sharedTbody = document.getElementById('sharedItemsBody');
-  sharedTbody.innerHTML = state.sharedItems.map(item => `
-    <tr>
-      <td>${item.name}</td>
-      <td class="text-right mono"><b>৳${Number(item.price).toLocaleString()}</b></td>
-      <td><span class="badge">${item.buyer}</span></td>
-      ${isAdmin ? `
-        <td class="text-center">
-          <button class="btn btn-sm btn-danger" onclick="deleteSharedItem(${item.id})" title="মুছুন">✕</button>
-        </td>
-      ` : ''}
-    </tr>
-  `).join('');
-  document.getElementById('sharedItemsTotal').textContent = `মোট: ৳${metrics.totalShared}`;
+  if (sharedTbody) {
+    const allSharedList = [];
+    (state.bazar || []).forEach(b => {
+      if (b.category === 'shared' || b.type === 'shared') {
+        allSharedList.push({
+          id: b.id,
+          name: b.item,
+          price: b.amount,
+          buyer: b.shopper,
+          date: b.date || '',
+          isBazar: true
+        });
+      }
+    });
+    (state.sharedItems || []).forEach(item => {
+      allSharedList.push({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        buyer: item.buyer,
+        date: item.date || '',
+        isBazar: false
+      });
+    });
+
+    if (allSharedList.length === 0) {
+      sharedTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:16px;">এখনো কোনো মেস সামগ্রী কেনা হয়নি</td></tr>`;
+    } else {
+      sharedTbody.innerHTML = allSharedList.map(item => `
+        <tr>
+          <td>
+            <b>${item.name}</b>
+            ${item.date ? `<br><span class="text-muted text-sm">${item.date}</span>` : ''}
+          </td>
+          <td class="text-right mono"><b>৳${Number(item.price).toLocaleString()}</b></td>
+          <td><span class="badge" style="background:rgba(192,132,252,0.15); color:#c084fc;">${item.buyer}</span></td>
+          <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
+            <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+              ${item.isBazar 
+                ? `<button class="btn-action-edit" onclick="openEditBazarModal(${item.id})" title="এডিট করুন">✏️</button>
+                   <button class="btn-action-delete" onclick="deleteBazar(${item.id})" title="মুছে ফেলুন">🗑️</button>`
+                : `<button class="btn-action-delete" onclick="deleteSharedItem(${item.id})" title="মুছে ফেলুন">🗑️</button>`
+              }
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+  const perShare = state.members.length > 0 ? (metrics.totalSharedBazar / state.members.length).toFixed(2) : '0';
+  const sharedTotalBadge = document.getElementById('sharedItemsTotal');
+  if (sharedTotalBadge) {
+    sharedTotalBadge.textContent = `মোট: ৳${metrics.totalSharedBazar} (মাথাপিছু ৳${perShare})`;
+  }
 
   // Member Utility Cards (dynamic estimation)
   const memberGrid = document.getElementById('memberUtilityGrid');
@@ -1847,6 +1893,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Search & Filter
   document.getElementById('bazarShopperFilter').addEventListener('change', renderBazarTable);
+  const catFilterEl = document.getElementById('bazarCategoryFilter');
+  if (catFilterEl) catFilterEl.addEventListener('change', renderBazarTable);
   document.getElementById('bazarSearchInput').addEventListener('input', renderBazarTable);
   document.getElementById('mealFilterInput').addEventListener('input', renderMealsTable);
 
@@ -2306,7 +2354,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v11';
+  const LATEST_BUILD = '2026-10-20-v12';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
