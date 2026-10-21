@@ -513,12 +513,22 @@ function renderDashboard(metrics) {
     const isPositive = m.balance > 0.01;
     const isNegative = m.balance < -0.01;
 
-    // Overall Member Payment Status (Paid: Green, Pending: Red)
-    if (!state.memberOverallStatus) state.memberOverallStatus = {};
-    const overallStatus = state.memberOverallStatus[m.name] || (isNegative ? 'Pending' : 'Paid');
-    const isOverallPaid = overallStatus === 'Paid';
+    // Overall Member Payment Status: Paid ONLY when EVERYTHING is paid (meals + fixed bills + shared supplies)
+    const isMealPaid = m.balance >= -0.01;
+    const hasFixedBills = (m.utilityTotal || 0) > 0;
+    const isBillPaid = !hasFixedBills || (state.memberBillStatus && state.memberBillStatus[m.name] === 'Paid');
+    const isSharedPaid = !state.memberSharedStatus || state.memberSharedStatus[m.name] !== 'Pending';
+
+    // Must be completely paid with zero dues
+    const isOverallPaid = isMealPaid && isBillPaid && isSharedPaid;
     const overallClass = isOverallPaid ? 'badge-green' : 'badge-red';
     const overallText = isOverallPaid ? 'Paid' : 'Pending';
+
+    const pendingReasons = [];
+    if (!isMealPaid) pendingReasons.push('খাবার ব্যালেন্স বকেয়া');
+    if (!isBillPaid) pendingReasons.push('বাসা ভাড়া ও বিল বকেয়া');
+    if (!isSharedPaid) pendingReasons.push('মেস সামগ্রী বকেয়া');
+    const overallTooltip = isOverallPaid ? 'সকল হিসাব ও বিল পরিশোধিত (Paid)' : `বকেয়া: ${pendingReasons.join(', ')}`;
 
     const balanceText = isPositive
       ? `+ ৳${Math.round(m.balance).toLocaleString()}`
@@ -537,7 +547,7 @@ function renderDashboard(metrics) {
             <div class="member-meals-sub">${m.meals} মিল</div>
           </div>
         </div>
-        <span class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;">${overallText}</span>
+        <span class="badge ${overallClass}" style="font-weight: 800; font-size: 0.72rem; padding: 2px 8px;" title="${overallTooltip}">${overallText}</span>
       </div>
 
       <div class="member-balance-box">
@@ -1117,13 +1127,32 @@ window.toggleMemberOverallStatus = function(memberName) {
     showToast('শুধুমাত্র এডমিন স্ট্যাটাস পরিবর্তন করতে পারবেন');
     return;
   }
-  if (!state.memberOverallStatus) state.memberOverallStatus = {};
-  const current = state.memberOverallStatus[memberName] || 'Pending';
-  const next = current === 'Paid' ? 'Pending' : 'Paid';
-  state.memberOverallStatus[memberName] = next;
+  const metrics = calculateMetrics();
+  const summary = metrics.memberSummaries.find(x => x.name === memberName);
+  if (!summary) return;
+
+  const isMealPaid = summary.balance >= -0.01;
+  const hasFixedBills = (summary.utilityTotal || 0) > 0;
+  const isBillPaid = !hasFixedBills || (state.memberBillStatus && state.memberBillStatus[memberName] === 'Paid');
+  const isSharedPaid = !state.memberSharedStatus || state.memberSharedStatus[memberName] !== 'Pending';
+  const isAllPaid = isMealPaid && isBillPaid && isSharedPaid;
+
+  if (!state.memberBillStatus) state.memberBillStatus = {};
+  if (!state.memberSharedStatus) state.memberSharedStatus = {};
+
+  if (!isAllPaid) {
+    // Mark all fixed bills and shared as Paid
+    state.memberBillStatus[memberName] = 'Paid';
+    state.memberSharedStatus[memberName] = 'Paid';
+    showToast(`${memberName}-এর সকল বিল পরিশোধিত (Paid) করা হয়েছে`);
+  } else {
+    // Toggle fixed bills to Pending
+    state.memberBillStatus[memberName] = 'Pending';
+    showToast(`${memberName}-এর বিল বকেয়া (Pending) করা হয়েছে`);
+  }
+
   saveState();
   renderAll();
-  showToast(`${memberName}-এর পেমেন্ট স্ট্যাটাস: ${next}`);
 };
 
 window.toggleMemberSharedStatus = function(memberName) {
@@ -2806,11 +2835,21 @@ window.openMemberDetailsModal = function(memberName) {
   const isPositive = m.balance > 0.01;
   const isNegative = m.balance < -0.01;
 
-  if (!state.memberOverallStatus) state.memberOverallStatus = {};
-  const overallStatus = state.memberOverallStatus[m.name] || (isNegative ? 'Pending' : 'Paid');
-  const isOverallPaid = overallStatus === 'Paid';
+  // Overall Member Payment Status: Paid ONLY when EVERYTHING is paid
+  const isMealPaid = m.balance >= -0.01;
+  const hasFixedBills = (m.utilityTotal || 0) > 0;
+  const isBillPaid = !hasFixedBills || (state.memberBillStatus && state.memberBillStatus[m.name] === 'Paid');
+  const isSharedPaid = !state.memberSharedStatus || state.memberSharedStatus[m.name] !== 'Pending';
+
+  const isOverallPaid = isMealPaid && isBillPaid && isSharedPaid;
   const overallClass = isOverallPaid ? 'badge-green' : 'badge-red';
   const overallText = isOverallPaid ? 'Paid' : 'Pending';
+
+  const modalPendingReasons = [];
+  if (!isMealPaid) modalPendingReasons.push('খাবার ব্যালেন্স বকেয়া');
+  if (!isBillPaid) modalPendingReasons.push('বাসা ভাড়া ও বিল বকেয়া');
+  if (!isSharedPaid) modalPendingReasons.push('মেস সামগ্রী বকেয়া');
+  const modalOverallTooltip = isOverallPaid ? 'সকল হিসাব ও বিল পরিশোধিত (Paid)' : `বকেয়া: ${modalPendingReasons.join(', ')}`;
 
   const balanceText = isPositive
     ? `+ ৳${Math.round(m.balance).toLocaleString()}`
