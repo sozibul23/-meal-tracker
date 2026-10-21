@@ -854,7 +854,7 @@ function renderBazarTable() {
   });
 
   const totalFiltered = filtered.reduce((s, b) => s + (Number(b.amount) || 0), 0);
-  document.getElementById('bazarFilteredCount').innerHTML = `ফিল্টারকৃত: <b>${formatBDT(totalFiltered)}</b>`;
+  document.getElementById('bazarFilteredCount').innerHTML = `ফিল্টারকৃত (${filtered.length}টি): <b>${formatBDT(totalFiltered)}</b>`;
   document.getElementById('bazarFooterTotal').textContent = formatBDT(totalFiltered);
 
   if (filtered.length === 0) {
@@ -1920,8 +1920,8 @@ function renderDepositHistoryTable() {
   }
   const pillBaz = document.getElementById('pillBazarBtn');
   if (pillBaz) {
-    const bazCount = state.bazar ? state.bazar.length : 0;
-    pillBaz.textContent = `🛒 বাজার (${bazCount})`;
+    const bazCount = (state.bazar ? state.bazar.length : 0) + (state.sharedItems ? state.sharedItems.length : 0);
+      pillBaz.textContent = `🛒 বাজার (${bazCount})`;
   }
 
   if (filterSelect) {
