@@ -765,10 +765,39 @@ function renderBazarTable() {
   const categorySelect = document.getElementById('bazarCategoryFilter');
   const selectedCategory = categorySelect ? categorySelect.value : 'ALL';
 
-  let filtered = state.bazar.filter(b => {
+  const foodEntries = (state.bazar || []).map(b => ({
+    id: b.id,
+    rawId: b.id,
+    isSharedTableItem: (b.category === 'shared' || b.type === 'shared'),
+    shopper: b.shopper || '',
+    item: b.item || '',
+    amount: Number(b.amount) || 0,
+    date: b.date || 'October',
+    category: (b.category === 'shared' || b.type === 'shared') ? 'shared' : 'food'
+  }));
+
+  const sharedEntries = (state.sharedItems || []).map((s, idx) => ({
+    id: 'shared-' + (s.id || idx),
+    rawId: s.id,
+    isSharedTableItem: true,
+    shopper: s.buyer || s.shopper || 'মেস',
+    item: s.name || s.item || 'মেস সামগ্রী',
+    amount: Number(s.price || s.amount) || 0,
+    date: s.date || 'October',
+    category: 'shared'
+  }));
+
+  const allEntries = [...foodEntries, ...sharedEntries];
+  allEntries.sort((a, b) => {
+    const dayA = parseInt(a.date, 10) || 0;
+    const dayB = parseInt(b.date, 10) || 0;
+    return dayA - dayB;
+  });
+
+  let filtered = allEntries.filter(b => {
     if (selectedShopper !== 'all' && b.shopper !== selectedShopper) return false;
-    if (selectedCategory === 'food' && (b.category === 'shared' || b.type === 'shared')) return false;
-    if (selectedCategory === 'shared' && !(b.category === 'shared' || b.type === 'shared')) return false;
+    if (selectedCategory === 'food' && b.category !== 'food') return false;
+    if (selectedCategory === 'shared' && b.category !== 'shared') return false;
     if (search && !b.item.toLowerCase().includes(search) && !b.shopper.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -777,13 +806,18 @@ function renderBazarTable() {
   document.getElementById('bazarFilteredCount').innerHTML = `ফিল্টারকৃত: <b>${formatBDT(totalFiltered)}</b>`;
   document.getElementById('bazarFooterTotal').textContent = formatBDT(totalFiltered);
 
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" style="padding: 24px;">কোনো বাজার বা সামগ্রী খরচ পাওয়া যায়নি</td></tr>`;
+    return;
+  }
+
   tbody.innerHTML = filtered.map((b, idx) => `
     <tr>
       <td class="mono text-muted">${idx + 1}</td>
       <td><b>${b.shopper}</b></td>
       <td>
         ${b.item} 
-        ${(b.category === 'shared' || b.type === 'shared') 
+        ${b.category === 'shared' 
           ? `<span class="badge" style="background:rgba(192,132,252,0.15); color:#c084fc; font-size:0.65rem; padding:1px 5px;">🧴 মেস সামগ্রী</span>`
           : `<span class="badge" style="background:rgba(212,249,56,0.12); color:var(--accent); font-size:0.65rem; padding:1px 5px;">🍚 খাবার</span>`}
         <span class="text-dim text-sm">(${b.date || 'October'})</span>
@@ -791,32 +825,60 @@ function renderBazarTable() {
       <td class="text-right mono"><b>${formatBDT(b.amount)}</b></td>
       <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
         <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
-          <button class="btn-action-edit" onclick="openEditBazarModal(${b.id})" title="এডিট করুন">✏️</button>
-          <button class="btn-action-delete" onclick="deleteBazar(${b.id})" title="মুছে ফেলুন">🗑️</button>
+          <button class="btn-action-edit" onclick="openEditBazarModal('${b.rawId}', ${b.isSharedTableItem})" title="এডিট করুন">✏️</button>
+          <button class="btn-action-delete" onclick="deleteBazar('${b.rawId}', ${b.isSharedTableItem})" title="মুছে ফেলুন">🗑️</button>
         </div>
       </td>
     </tr>
   `).join('');
 }
 
-window.deleteBazar = function(id) {
+window.deleteBazar = function(id, isShared = false) {
   if (!isAdmin) return;
-  const item = state.bazar.find(b => String(b.id) === String(id));
-  const desc = item ? `"${item.item}" (${formatBDT(item.amount)})` : 'এই বাজার এন্ট্রিটি';
+  let item = state.bazar.find(b => String(b.id) === String(id));
+  let isSharedItem = isShared || (item && (item.category === 'shared' || item.type === 'shared'));
+  
+  if (!item && state.sharedItems) {
+    const s = state.sharedItems.find(s => String(s.id) === String(id));
+    if (s) {
+      item = { item: s.name, amount: s.price };
+      isSharedItem = true;
+    }
+  }
+  
+  const desc = item ? `"${item.item}" (${formatBDT(item.amount)})` : 'এই খরচটি';
   if (confirm(`আপনি কি নিশ্চিতভাবে ${desc} মুছে ফেলতে চান?`)) {
+    if (isSharedItem && state.sharedItems) {
+      state.sharedItems = state.sharedItems.filter(s => String(s.id) !== String(id));
+    }
     state.bazar = state.bazar.filter(b => String(b.id) !== String(id));
     saveState();
     renderAll();
-    showToast('বাজার এন্ট্রি সফলভাবে মুছে ফেলা হয়েছে');
+    showToast('খরচ সফলভাবে মুছে ফেলা হয়েছে');
   }
 };
 
-window.openEditBazarModal = function(id) {
+window.openEditBazarModal = function(id, isShared = false) {
   if (!isAdmin) {
     showToast('শুধুমাত্র এডমিন এডিট করতে পারবেন');
     return;
   }
-  const item = state.bazar.find(b => String(b.id) === String(id));
+  let item = state.bazar.find(b => String(b.id) === String(id));
+  let isSharedItem = isShared;
+  if (!item && state.sharedItems) {
+    const s = state.sharedItems.find(s => String(s.id) === String(id));
+    if (s) {
+      item = {
+        id: s.id,
+        shopper: s.buyer,
+        item: s.name,
+        amount: s.price,
+        date: s.date || 'October',
+        category: 'shared'
+      };
+      isSharedItem = true;
+    }
+  }
   if (!item) {
     showToast('বাজার খরচ পাওয়া যায়নি');
     return;
@@ -828,7 +890,9 @@ window.openEditBazarModal = function(id) {
   document.getElementById('editBazarItemInput').value = item.item || '';
   document.getElementById('editBazarAmountInput').value = item.amount || '';
   const catSelect = document.getElementById('editBazarCategorySelect');
-  if (catSelect) catSelect.value = item.category || item.type || 'food';
+  if (catSelect) {
+    catSelect.value = (isSharedItem || item.category === 'shared' || item.type === 'shared') ? 'shared' : 'food';
+  }
 
   const modal = document.getElementById('editBazarModal');
   if (modal) modal.classList.add('open');
@@ -1334,8 +1398,9 @@ function renderDashboardBills() {
 window.deleteSharedItem = function(id) {
   if (!isAdmin) return;
   if (confirm('আপনি কি এই সামগ্রীর খরচ মুছে ফেলতে চান?')) {
-    state.sharedItems = state.sharedItems.filter(item => item.id !== id);
+    state.sharedItems = (state.sharedItems || []).filter(item => String(item.id) !== String(id));
     saveState();
+    renderAll();
     showToast('মেস সামগ্রী খরচ মুছে ফেলা হয়েছে');
   }
 };
@@ -2099,6 +2164,18 @@ document.addEventListener('DOMContentLoaded', () => {
         closeEditBazarModal();
         renderAll();
         showToast('বাজার খরচ সফলভাবে আপডেট করা হয়েছে!');
+      } else if (state.sharedItems) {
+        const sIdx = state.sharedItems.findIndex(s => String(s.id) === String(id));
+        if (sIdx !== -1) {
+          state.sharedItems[sIdx].buyer = shopper;
+          state.sharedItems[sIdx].date = date;
+          state.sharedItems[sIdx].name = item;
+          state.sharedItems[sIdx].price = amount;
+          saveState();
+          closeEditBazarModal();
+          renderAll();
+          showToast('মেস সামগ্রী খরচ সফলভাবে আপডেট করা হয়েছে!');
+        }
       }
     });
   }
@@ -2156,18 +2233,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!item || !amount) return;
 
-    state.bazar.push({
-      id: Date.now(),
-      shopper,
-      item,
-      amount,
-      date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })
-    });
+    if (category === 'shared') {
+      if (!state.sharedItems) state.sharedItems = [];
+      state.sharedItems.push({
+        id: Date.now(),
+        name: item,
+        price: amount,
+        buyer: shopper,
+        date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })
+      });
+    } else {
+      state.bazar.push({
+        id: Date.now(),
+        shopper,
+        item,
+        amount,
+        category: 'food',
+        date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })
+      });
+    }
 
     saveState();
+    renderAll();
     closeBazarModal();
     document.getElementById('bazarForm').reset();
-    showToast('নতুন বাজার খরচ সফলভাবে যোগ হয়েছে!');
+    showToast(category === 'shared' ? 'নতুন মেস সামগ্রী সফলভাবে যোগ হয়েছে!' : 'নতুন বাজার খরচ সফলভাবে যোগ হয়েছে!');
   });
 
   // Deposit Modal
