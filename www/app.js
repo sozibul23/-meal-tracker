@@ -791,7 +791,8 @@ function renderBazarTable() {
   allEntries.sort((a, b) => {
     const dayA = parseInt(a.date, 10) || 0;
     const dayB = parseInt(b.date, 10) || 0;
-    return dayA - dayB;
+    if (dayA !== dayB) return dayA - dayB;
+    return String(a.rawId).localeCompare(String(b.rawId));
   });
 
   let filtered = allEntries.filter(b => {
@@ -2096,13 +2097,62 @@ document.addEventListener('DOMContentLoaded', () => {
     nameInput.value = '';
   });
 
-  // Bazar Modal
+  // Bazar Modal (Multi-Item & Specific Date Support)
+  
+  // Multi-item Bazar Row Helpers
+  function createBazarRowElement(name = '', price = '') {
+    const div = document.createElement('div');
+    div.className = 'bazar-item-row';
+    div.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    div.innerHTML = `
+      <input type="text" class="input bazar-item-name" placeholder="যেমন: মুরগি / চাল / ডিম" value="${name}" required style="flex: 2;">
+      <input type="number" class="input mono bazar-item-price" placeholder="টাকা" value="${price}" min="1" step="any" required style="flex: 1;">
+      <button type="button" class="btn btn-outline btn-sm remove-bazar-row-btn" style="padding: 4px 8px;" title="বাদ দিন">✕</button>
+    `;
+    return div;
+  }
+
+  function updateBazarModalLiveTotal() {
+    const prices = document.querySelectorAll('#bazarItemsRowsContainer .bazar-item-price');
+    let sum = 0;
+    prices.forEach(inp => {
+      const v = Number(inp.value);
+      if (!isNaN(v) && v > 0) sum += v;
+    });
+    const totalEl = document.getElementById('modalBazarLiveTotal');
+    if (totalEl) totalEl.textContent = 'মোট: ' + formatBDT(sum);
+  }
+
+  function resetBazarItemRows() {
+    const container = document.getElementById('bazarItemsRowsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    const initialRow = createBazarRowElement();
+    container.appendChild(initialRow);
+    const removeBtn = initialRow.querySelector('.remove-bazar-row-btn');
+    if (removeBtn) removeBtn.style.visibility = 'hidden';
+    updateBazarModalLiveTotal();
+  }
+
+
   const bazarModal = document.getElementById('bazarModal');
   const openBazarModal = () => {
     if (!isAdmin) {
       showToast('বাজার যোগ করতে এডমিন লগইন করুন');
       return;
     }
+    const shopperSelect = document.getElementById('modalShopperSelect');
+    if (shopperSelect) {
+      shopperSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+    const today = new Date();
+    const day = today.getDate();
+    const monthPart = (state.month || 'October 2026').split(' ')[0];
+    const dateInput = document.getElementById('modalBazarDateInput');
+    if (dateInput) {
+      dateInput.value = `${day} ${monthPart}`;
+    }
+    resetBazarItemRows();
     bazarModal.classList.add('open');
   };
   const closeBazarModal = () => bazarModal.classList.remove('open');
@@ -2112,7 +2162,53 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('closeBazarModalBtn').addEventListener('click', closeBazarModal);
   document.getElementById('cancelBazarModalBtn').addEventListener('click', closeBazarModal);
 
-  
+  const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
+  if (setTodayBtn) {
+    setTodayBtn.addEventListener('click', () => {
+      const today = new Date();
+      const day = today.getDate();
+      const monthPart = (state.month || 'October 2026').split(' ')[0];
+      const dateInput = document.getElementById('modalBazarDateInput');
+      if (dateInput) dateInput.value = `${day} ${monthPart}`;
+    });
+  }
+
+  const addMoreRowBtn = document.getElementById('addMoreBazarItemBtn');
+  if (addMoreRowBtn) {
+    addMoreRowBtn.addEventListener('click', () => {
+      const container = document.getElementById('bazarItemsRowsContainer');
+      if (!container) return;
+      const row = createBazarRowElement();
+      container.appendChild(row);
+      container.querySelectorAll('.remove-bazar-row-btn').forEach(btn => btn.style.visibility = 'visible');
+      const nameInput = row.querySelector('.bazar-item-name');
+      if (nameInput) nameInput.focus();
+    });
+  }
+
+  const rowsContainer = document.getElementById('bazarItemsRowsContainer');
+  if (rowsContainer) {
+    rowsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-bazar-row-btn')) {
+        const row = e.target.closest('.bazar-item-row');
+        if (row) {
+          row.remove();
+          const allRows = rowsContainer.querySelectorAll('.bazar-item-row');
+          if (allRows.length === 1) {
+            allRows[0].querySelector('.remove-bazar-row-btn').style.visibility = 'hidden';
+          }
+          updateBazarModalLiveTotal();
+        }
+      }
+    });
+
+    rowsContainer.addEventListener('input', (e) => {
+      if (e.target.classList.contains('bazar-item-price')) {
+        updateBazarModalLiveTotal();
+      }
+    });
+  }
+
   // Edit Bazar Modal Listeners
   const editBazarModal = document.getElementById('editBazarModal');
   const closeEditBazarModal = () => { if (editBazarModal) editBazarModal.classList.remove('open'); };
@@ -2166,84 +2262,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Edit Deposit Modal Listeners
-  const editDepositModal = document.getElementById('editDepositModal');
-  const closeEditDepositModal = () => { if (editDepositModal) editDepositModal.classList.remove('open'); };
-  const closeEditDepositBtn = document.getElementById('closeEditDepositModalBtn');
-  const cancelEditDepositBtn = document.getElementById('cancelEditDepositModalBtn');
-  if (closeEditDepositBtn) closeEditDepositBtn.addEventListener('click', closeEditDepositModal);
-  if (cancelEditDepositBtn) cancelEditDepositBtn.addEventListener('click', closeEditDepositModal);
-
-  const editDepositForm = document.getElementById('editDepositForm');
-  if (editDepositForm) {
-    editDepositForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (!isAdmin) return;
-      const id = document.getElementById('editDepositId').value;
-      const member = document.getElementById('editDepositMemberSelect').value;
-      const amount = Number(document.getElementById('editDepositAmountInput').value);
-      const date = document.getElementById('editDepositDateInput').value.trim();
-      const note = document.getElementById('editDepositNoteInput').value.trim();
-
-      if (!member || isNaN(amount) || amount <= 0) {
-        showToast('সঠিক জমার পরিমাণ দিন');
-        return;
-      }
-
-      ensureDepositHistory(state);
-      const idx = state.depositHistory.findIndex(d => String(d.id) === String(id));
-      if (idx !== -1) {
-        state.depositHistory[idx].member = member;
-        state.depositHistory[idx].amount = amount;
-        state.depositHistory[idx].date = date;
-        state.depositHistory[idx].note = note;
-
-        recalculateDepositsFromHistory();
-        saveState();
-        closeEditDepositModal();
-        renderAll();
-        showToast('ফান্ড জমা এন্ট্রি সফলভাবে আপডেট করা হয়েছে!');
-      }
-    });
-  }
-
   document.getElementById('bazarForm').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!isAdmin) return;
 
     const shopper = document.getElementById('modalShopperSelect').value;
-    const item = document.getElementById('modalItemInput').value.trim();
-    const amount = Number(document.getElementById('modalAmountInput').value);
     const catEl = document.getElementById('modalBazarCategorySelect');
     const category = catEl ? catEl.value : 'food';
+    const dateInput = document.getElementById('modalBazarDateInput');
+    const date = dateInput ? dateInput.value.trim() : `${new Date().getDate()} October`;
 
-    if (!item || !amount) return;
+    const items = [];
+    document.querySelectorAll('#bazarItemsRowsContainer .bazar-item-row').forEach(row => {
+      const name = (row.querySelector('.bazar-item-name').value || '').trim();
+      const price = Number(row.querySelector('.bazar-item-price').value);
+      if (name && !isNaN(price) && price > 0) {
+        items.push({ name, price });
+      }
+    });
 
-    if (category === 'shared') {
-      if (!state.sharedItems) state.sharedItems = [];
-      state.sharedItems.push({
-        id: Date.now(),
-        name: item,
-        price: amount,
-        buyer: shopper,
-        date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })
-      });
-    } else {
-      state.bazar.push({
-        id: Date.now(),
-        shopper,
-        item,
-        amount,
-        category: 'food',
-        date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })
-      });
+    if (items.length === 0) {
+      showToast('অন্তত একটি জিনিস ও তার সঠিক টাকা লিখুন');
+      return;
     }
+
+    const baseTime = Date.now();
+    items.forEach((it, idx) => {
+      const entryId = baseTime + idx;
+      if (category === 'shared') {
+        if (!state.sharedItems) state.sharedItems = [];
+        state.sharedItems.push({
+          id: entryId,
+          name: it.name,
+          price: it.price,
+          buyer: shopper,
+          date: date
+        });
+      } else {
+        if (!state.bazar) state.bazar = [];
+        state.bazar.push({
+          id: entryId,
+          shopper: shopper,
+          item: it.name,
+          amount: it.price,
+          category: 'food',
+          date: date
+        });
+      }
+    });
 
     saveState();
     renderAll();
     closeBazarModal();
     document.getElementById('bazarForm').reset();
-    showToast(category === 'shared' ? 'নতুন মেস সামগ্রী সফলভাবে যোগ হয়েছে!' : 'নতুন বাজার খরচ সফলভাবে যোগ হয়েছে!');
+    showToast(items.length > 1 
+      ? `${items.length}টি জিনিসের বাজার খরচ সফলভাবে যোগ হয়েছে!` 
+      : (category === 'shared' ? 'নতুন মেস সামগ্রী সফলভাবে যোগ হয়েছে!' : 'নতুন বাজার খরচ সফলভাবে যোগ হয়েছে!')
+    );
   });
 
   // Deposit Modal

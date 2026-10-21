@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.3.0">
+  <link rel="stylesheet" href="style.css?v=1.3.1">
 </head>
 <body>
 
@@ -760,31 +760,50 @@
 
   <!-- Modal: Add Bazar -->
   <div class="modal" id="bazarModal">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width: 530px;">
       <div class="modal-head">
-        <h3>নতুন বাজার খরচ যোগ করুন</h3>
+        <h3>🛒 বাজার খরচ যোগ করুন</h3>
         <button class="modal-close-btn" id="closeBazarModalBtn">&times;</button>
       </div>
       <form id="bazarForm">
         <div class="modal-body">
-          <div class="form-field">
-            <label for="modalShopperSelect">বাজারকারী মেম্বার *</label>
-            <select id="modalShopperSelect" class="input" required></select>
+          <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <div class="form-field" style="flex: 1; margin: 0;">
+              <label for="modalShopperSelect">বাজারকারী মেম্বার *</label>
+              <select id="modalShopperSelect" class="input" required></select>
+            </div>
+            <div class="form-field" style="flex: 1; margin: 0;">
+              <label for="modalBazarCategorySelect">বাজারের ধরণ *</label>
+              <select id="modalBazarCategorySelect" class="input" style="font-weight: 600;">
+                <option value="food">🍚 খাবার বাজার (মিল রেটে)</option>
+                <option value="shared">🧴 মেস সামগ্রী (সমান ভাগ)</option>
+              </select>
+            </div>
           </div>
-          <div class="form-field">
-            <label for="modalBazarCategorySelect">বাজারের ধরণ (ক্যাটাগরি) *</label>
-            <select id="modalBazarCategorySelect" class="input" style="font-weight: 600;">
-              <option value="food">🍚 খাবার বাজার (মিল রেটে যোগ হবে)</option>
-              <option value="shared">🧴 মেস সামগ্রী / এক্সট্রা বাজার (হারপিক, সাবান, মসলা - সমান ভাগ)</option>
-            </select>
+
+          <div class="form-field" style="margin-bottom: 14px;">
+            <label for="modalBazarDateInput">বাজারের তারিখ *</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="modalBazarDateInput" class="input" placeholder="যেমন: 21 October" required style="flex: 1;">
+              <button type="button" class="btn btn-outline btn-sm" id="setTodayBazarDateBtn" style="white-space: nowrap; font-size: 0.78rem;">📅 আজকের তারিখ</button>
+            </div>
           </div>
-          <div class="form-field">
-            <label for="modalItemInput">ক্রয়কৃত মালামাল ও বিবরণ *</label>
-            <input type="text" id="modalItemInput" class="input" placeholder="যেমন: মুরগি ৩২০, চাল ৫০..." required>
-          </div>
-          <div class="form-field">
-            <label for="modalAmountInput">মোট খরচ (টাকা) *</label>
-            <input type="number" id="modalAmountInput" class="input mono" placeholder="যেমন: 350" min="1" step="any" required>
+
+          <div class="form-field" style="margin: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label style="margin: 0; font-weight: 700; font-size: 0.9rem;">
+                ক্রয়কৃত জিনিসপত্র ও খরচের তালিকা
+              </label>
+              <span class="mono text-sm" style="color: var(--accent); font-weight: 800; font-size: 0.92rem;" id="modalBazarLiveTotal">
+                মোট: ৳০.০০
+              </span>
+            </div>
+            <div id="bazarItemsRowsContainer" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic Rows injected via JS -->
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="addMoreBazarItemBtn" style="margin-top: 10px; width: 100%; border-style: dashed; font-weight: 600;">
+              ➕ একই তারিখে আরো জিনিস যোগ করুন
+            </button>
           </div>
         </div>
         <div class="modal-foot">
@@ -972,7 +991,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.9"></script>
-  <script src="app.js?v=1.3.0"></script>
+  <script src="app.js?v=1.3.1"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
