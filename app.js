@@ -145,12 +145,24 @@ function loadMonthsList() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        allMonths = parsed;
+        allMonths = parsed.filter(m => m.id !== '2026-11');
+        if (allMonths.length === 0) {
+          allMonths = [{ id: '2026-10', name: 'October 2026', label: 'অক্টোবর ২০২৬', days: 31 }];
+        }
       }
     }
   } catch (e) {
     console.warn('Error reading months list', e);
   }
+
+  try {
+    localStorage.removeItem('MESS_DATA_2026-11');
+    if (currentMonthId === '2026-11') {
+      currentMonthId = '2026-10';
+      localStorage.setItem(MESS_ACTIVE_MONTH_KEY, '2026-10');
+    }
+    localStorage.setItem(MESS_ALL_MONTHS_KEY, JSON.stringify(allMonths));
+  } catch (e) {}
 }
 
 function saveMonthsList() {
@@ -1761,7 +1773,7 @@ window.deleteCurrentMonth = function() {
     } catch(e) {}
     allMonths = allMonths.filter(m => m.id !== currentMonthId);
     saveMonthsList();
-    const targetId = allMonths[allMonths.length - 1].id;
+    const targetId = allMonths.length > 0 ? allMonths[allMonths.length - 1].id : '2026-10';
     currentMonthId = '';
     switchMonth(targetId);
     showToast(`"${name}" মাস সফলভাবে মুছে ফেলা হয়েছে`);
