@@ -472,7 +472,14 @@ function renderKPIs(metrics) {
   const remCash = metrics.remainingCash !== undefined ? metrics.remainingCash : metrics.remainingFund;
   if (remEl) {
     remEl.textContent = formatBDT(remCash);
-    remEl.style.color = remCash < 0 ? 'var(--danger)' : 'var(--text-main)';
+    remEl.classList.remove('balance-due', 'balance-surplus');
+    if (remCash < 0) {
+      remEl.classList.add('balance-due');
+      remEl.style.color = '#dc2626';
+    } else {
+      remEl.classList.add('balance-surplus');
+      remEl.style.color = '#0a0d14';
+    }
   }
   const fundStatusEl = document.getElementById('kpiFundStatus');
   if (fundStatusEl) {

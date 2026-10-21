@@ -586,14 +586,21 @@ body {
   color: #475569 !important;
   font-weight: 800 !important;
 }
-[data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-value {
+[data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-value,
+.stats-row .stat-card:nth-child(3) .stat-value,
+#kpiRemainingFund {
+  color: #0a0d14 !important;
   font-weight: 900 !important;
 }
-[data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-value.balance-due {
+[data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-value.balance-due,
+.stats-row .stat-card:nth-child(3) .stat-value.balance-due,
+#kpiRemainingFund.balance-due {
   color: #dc2626 !important;
 }
-[data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-value.balance-surplus {
-  color: #15803d !important;
+[data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-value.balance-surplus,
+.stats-row .stat-card:nth-child(3) .stat-value.balance-surplus,
+#kpiRemainingFund.balance-surplus {
+  color: #0a0d14 !important;
 }
 [data-theme="dark"] .stats-row .stat-card:nth-child(3) .stat-desc {
   color: #64748b !important;
