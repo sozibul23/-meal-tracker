@@ -1061,11 +1061,38 @@ function renderUtilities(metrics) {
         }).join('')}
       </tbody>
       <tfoot>
-        <tr>
-          <th>মোট খাতের ব্যয়</th>
-          ${state.fixedBills.map(b => `<th class="text-right mono">৳${Number(b.amount).toLocaleString()}</th>`).join('')}
-          <th class="text-right mono" style="font-weight:800; color:var(--text-main);">৳${Math.round(totalFixed).toLocaleString()}</th>
-          <th class="text-center" style="font-size:0.72rem; color:var(--text-muted);">${paidCount}/${state.members.length} Paid</th>
+        <tr style="background: rgba(255,255,255,0.03);">
+          <th>
+            <div style="font-weight: 700; color: var(--text-main);">সর্বমোট খাত খরচ</div>
+            <div class="text-muted text-xs" style="font-weight: normal;">মূল বিলের মোট অংক</div>
+          </th>
+          ${state.fixedBills.map(b => `
+            <th class="text-right" style="vertical-align: top;">
+              <div class="mono" style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">
+                ৳${Number(b.amount).toLocaleString()}
+              </div>
+              <div class="text-muted text-xs" style="font-weight: normal; margin-top: 2px;">
+                ${b.splitCount || state.members.length} জনের ভাগ
+              </div>
+              ${isAdmin ? `
+                <div style="display: inline-flex; gap: 4px; margin-top: 6px; align-items: center; justify-content: flex-end;">
+                  <button class="btn-action-edit" onclick="openEditBillModal('${b.id}')" title="এডিট করুন" style="padding: 2px 6px; font-size: 0.75rem;">✏️</button>
+                  <button class="btn-action-delete" onclick="deleteBill('${b.id}')" title="মুছে ফেলুন" style="padding: 2px 6px; font-size: 0.75rem;">🗑️</button>
+                </div>
+              ` : ''}
+            </th>
+          `).join('')}
+          <th class="text-right mono" style="font-weight: 800; color: #38bdf8; font-size: 1.05rem; vertical-align: top;">
+            ৳${Math.round(totalFixed).toLocaleString()}
+            <div class="text-muted text-xs" style="font-weight: normal; margin-top: 2px;">
+              মাথাপিছু ~৳${Math.round(totalFixed / (state.members.length || 1)).toLocaleString()}
+            </div>
+          </th>
+          <th class="text-center" style="font-size: 0.75rem; color: var(--text-muted); vertical-align: middle;">
+            <span class="badge ${paidCount === state.members.length ? 'badge-green' : 'badge-subtle'}">
+              ${paidCount}/${state.members.length} Paid
+            </span>
+          </th>
         </tr>
       </tfoot>
     `;
@@ -1149,48 +1176,7 @@ function renderUtilities(metrics) {
     }).join('');
   }
 
-  // 5. Render Fixed Bills Table (Management)
-  const tbody = document.getElementById('fixedBillsBody');
-  if (tbody) {
-    tbody.innerHTML = state.fixedBills.map(b => {
-      const avg = b.amount / (b.splitCount || state.members.length);
-      const statusClass = b.status === 'Paid' ? 'badge-green' : 'badge-red';
-      const statusText = b.status === 'Paid' ? 'Paid' : 'Pending';
-
-      return `
-        <tr>
-          <td>
-            <b>${b.title}</b>
-            ${b.note ? `<br><span class="text-muted text-sm">${b.note}</span>` : ''}
-          </td>
-          <td class="text-right mono">৳${Number(b.amount).toLocaleString()}</td>
-          <td class="text-right mono">৳${avg.toFixed(2)}</td>
-          <td>
-            ${isAdmin ? `
-              <button class="badge ${statusClass}" onclick="toggleBillStatus(${b.id})" style="cursor:pointer; border:none;" title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন">
-                ${statusText} ⟳
-              </button>
-            ` : `
-              <span class="badge ${statusClass}">${statusText}</span>
-            `}
-          </td>
-          <td class="text-center admin-only-cell" style="display: ${isAdmin ? 'table-cell' : 'none'};">
-            <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
-              <button class="btn-action-edit" onclick="openEditBillModal(${b.id})" title="এডিট করুন">✏️</button>
-              <button class="btn-action-delete" onclick="deleteBill(${b.id})" title="মুছে ফেলুন">🗑️</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  const footTotal = document.getElementById('totalFixedFoot');
-  if (footTotal) footTotal.textContent = formatBDT(totalFixed);
-  const footAvg = document.getElementById('avgFixedFoot');
-  if (footAvg) footAvg.textContent = `~${formatBDT(state.members.length > 0 ? totalFixed / state.members.length : 0)}`;
-
-  // 6. Render Shared Items Table
+  // 5. Render Shared Items Table
   renderSharedItems();
 }
 
@@ -2402,6 +2388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     buyerSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
     sharedItemModal.classList.add('open');
   };
+  window.openSharedItemModalGlobal = openSharedItemModal;
   const closeSharedItemModal = () => sharedItemModal.classList.remove('open');
 
   const openSharedItemBtn = document.getElementById('openAddSharedItemBtn');
