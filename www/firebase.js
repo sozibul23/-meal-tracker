@@ -143,7 +143,7 @@ function pushStateToFirebase(currentState) {
   if (!db || !isCloudConnected || isSyncingFromRemote) return;
 
   const docPath = getFirestoreDocPath(activeMonthDocId);
-  db.doc(docPath).set(currentState, { merge: true })
+  db.doc(docPath).set(currentState)
     .then(() => {
       updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
     })

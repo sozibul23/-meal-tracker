@@ -31,18 +31,20 @@ function fallbackCopy(text, successMessage) {
  */
 
 const INITIAL_DATA = {
+  dataVersion: '2026-10-21_GSHEET_SYNC_V2',
   depositHistory: [
     { id: 'init-1', member: 'Sadhin', amount: 1397, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
     { id: 'init-2', member: 'Tanzid', amount: 1599, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
-    { id: 'init-3', member: 'Akhirul', amount: 1281, date: '1 October 2026', note: 'মেস ফান্ড জমা' }
+    { id: 'init-3', member: 'Akhirul', amount: 1556, date: '1 October 2026', note: 'মেস ফান্ড জমা' }
   ],
   month: 'October 2026',
+  monthBn: 'অক্টোবর ২০২৬',
   members: ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'],
   adminPin: '1234',
   deposits: {
     Sadhin: 1397,
     Tanzid: 1599,
-    Akhirul: 1281,
+    Akhirul: 1556,
     Imam: 0
   },
   bazar: [
@@ -64,7 +66,8 @@ const INITIAL_DATA = {
     { id: 16, shopper: 'Akhirul', item: 'Chal 341, mosla 30, vim 20', amount: 391, date: '16 October' },
     { id: 17, shopper: 'Akhirul', item: 'Polar chal 80, mosla 60', amount: 140, date: '17 October' },
     { id: 18, shopper: 'Tanzid', item: 'Dim 50', amount: 50, date: '18 October' },
-    { id: 19, shopper: 'Sadhin', item: 'Murgi 340, dheros 20', amount: 360, date: '18 October' }
+    { id: 19, shopper: 'Sadhin', item: 'Murgi 340, dheros 20', amount: 360, date: '19 October' },
+    { id: 20, shopper: 'Akhirul', item: 'Tel, sobji, lighter, dim', amount: 275, date: '20 October' }
   ],
   meals: {
     1: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
@@ -85,8 +88,8 @@ const INITIAL_DATA = {
     16: { Sadhin: 2, Tanzid: 2, Akhirul: 2, Imam: 0 },
     17: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
     18: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    19: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    20: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
+    19: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
+    20: { Sadhin: 2, Tanzid: 0, Akhirul: 2, Imam: 0 },
     21: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
     22: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
     23: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
@@ -105,9 +108,16 @@ const INITIAL_DATA = {
     { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Paid', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
   ],
   sharedItems: [
-    { id: 1, name: 'Harpic + Handwash', price: 270, buyer: 'Sadhin' },
-    { id: 2, name: 'Tul (টুল)', price: 350, buyer: 'Tanzid' }
-  ]
+    { id: 1, name: 'Harpic + Handwash', price: 270, buyer: 'Sadhin', date: '27 October' },
+    { id: 2, name: 'Tul (টুল)', price: 350, buyer: 'Tanzid', date: '28 October' },
+    { id: 3, name: 'Rice case', price: 100, buyer: 'Sadhin', date: '29 October' }
+  ],
+  memberBillStatus: {
+    Sadhin: 'Paid',
+    Tanzid: 'Paid',
+    Akhirul: 'Paid',
+    Imam: 'Paid'
+  }
 };
 
 
@@ -234,9 +244,21 @@ const ADMIN_SESSION_KEY = 'MESS_ADMIN_LOGGED_IN';
 let state = loadState();
 let isAdmin = sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true';
 
+const GSHEET_SYNC_KEY = 'MESS_GSHEET_SYNC_V20261021_V2';
+
 function loadState(monthId = currentMonthId) {
   const key = getStorageKeyForMonth(monthId);
   try {
+    // If October 2026 and not yet synced to latest Google Sheet revision, force reset
+    if (monthId === '2026-10') {
+      const isSynced = localStorage.getItem(GSHEET_SYNC_KEY);
+      if (!isSynced) {
+        localStorage.setItem(GSHEET_SYNC_KEY, 'true');
+        localStorage.setItem(key, JSON.stringify(INITIAL_DATA));
+        return JSON.parse(JSON.stringify(INITIAL_DATA));
+      }
+    }
+
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -2436,6 +2458,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof initFirebase === 'function') {
     initFirebase((remoteState) => {
       if (remoteState && remoteState.members) {
+        // If remote state in Firestore is from an older data version, push new Google Sheet data
+        if (remoteState.dataVersion !== INITIAL_DATA.dataVersion) {
+          console.log('Syncing fresh Google Sheet data to Firestore...');
+          pushStateToFirebase(state);
+          return;
+        }
         state = remoteState;
         ensureDepositHistory(state);
         try {
