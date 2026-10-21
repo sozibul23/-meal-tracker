@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.2.4">
+  <link rel="stylesheet" href="style.css?v=1.2.5">
 </head>
 <body>
 
@@ -511,14 +511,25 @@
 
         <!-- WhatsApp Preview Box -->
         <div class="card">
-          <div class="card-title-row">
+          <div class="card-title-row" style="margin-bottom: 12px;">
             <h3>হোয়াটসঅ্যাপ গ্রুপ রিপোর্ট প্রিভিউ</h3>
-            <span class="badge">কপি করতে প্রস্তুত</span>
+            <span class="badge badge-subtle">জিরো কনফিউশন</span>
           </div>
+
+          <!-- Mode Toggle Tabs (Short & Minimal / Detailed) -->
+          <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+            <button type="button" class="pill-btn active wa-mode-toggle" data-mode="minimal" onclick="setWhatsAppReportMode('minimal')">
+              ⚡ সংক্ষিপ্ত ও মিনিমাল
+            </button>
+            <button type="button" class="pill-btn wa-mode-toggle" data-mode="detailed" onclick="setWhatsAppReportMode('detailed')">
+              📑 পূর্ণাঙ্গ বিস্তারিত
+            </button>
+          </div>
+
           <div class="code-preview-box">
             <pre id="whatsAppTextPreview"></pre>
           </div>
-          <div style="display: flex; gap: 10px; margin-top: 14px;">
+          <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
             <button class="btn btn-outline btn-sm" id="copyTextBtn">📋 টেক্সট কপি করুন</button>
             <a href="#" target="_blank" id="openWhatsAppLink" class="btn btn-primary btn-sm">💬 সরাসরি হোয়াটসঅ্যাপ খুলুন</a>
           </div>
@@ -979,7 +990,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.8"></script>
-  <script src="app.js?v=1.2.4"></script>
+  <script src="app.js?v=1.2.5"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">

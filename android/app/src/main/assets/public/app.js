@@ -1347,62 +1347,110 @@ function renderSettlement(metrics) {
   generateWhatsAppSummary(metrics);
 }
 
-function generateWhatsAppSummary(metrics) {
-  let msg = `📋 *মিল ট্র্যাকার (Meal Tracker) - পূর্ণাঙ্গ মেস রিপোর্ট*\n`;
-  msg += `🗓️ *মাস:* ${state.monthBn || state.month}\n`;
-  msg += `────────────────────────\n\n`;
+let currentWaMode = 'minimal';
+let lastCalculatedMetrics = null;
 
-  // 1. MEAL REPORT
-  msg += `🍚 *[ ১. খাবারের মিল হিসাব ]*\n`;
-  msg += `• মোট খাবার বাজার: ৳${metrics.totalFoodBazar.toFixed(2)}\n`;
-  msg += `• মোট মিল: ${metrics.totalMeals} টি\n`;
-  msg += `• মিল রেট: ৳${metrics.mealRate.toFixed(2)}\n`;
-  msg += `• সদস্যভিত্তিক মিল:\n`;
-  metrics.memberSummaries.forEach(m => {
-    msg += `  ▫️ *${m.name}*: ${m.meals} মিল | খাবার খরচ: ৳${Math.round(m.mealCost)} | ক্যাশ জমা: ৳${Math.round(m.cashDeposit)}\n`;
+function setWhatsAppReportMode(mode) {
+  currentWaMode = mode;
+  document.querySelectorAll('.wa-mode-toggle').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
   });
-  msg += `\n`;
-
-  // 2. OTHERS COST REPORT
-  msg += `🧴 *[ ২. অন্যান্য খরচ (মেস সামগ্রী ও বিল) ]*\n`;
-  msg += `• মেস সামগ্রী মোট: ৳${metrics.totalSharedBazar.toFixed(2)} (মাথাপিছু ৳${(metrics.totalSharedBazar / (state.members.length || 1)).toFixed(2)})\n`;
-  metrics.memberSummaries.forEach(m => {
-    if (m.sharedPaid > 0) {
-      msg += `  ▫️ *${m.name}* সামগ্রী কিনেছেন: ৳${Math.round(m.sharedPaid)}\n`;
-    }
-  });
-  msg += `• মাসিক স্থায়ী বিল (ভাড়া ও ইউটিলিটি):\n`;
-  (state.fixedBills || []).forEach(b => {
-    msg += `  ▫️ ${b.title}: ৳${Number(b.amount).toLocaleString()} (${b.splitCount || state.members.length} জনের ভাগ)\n`;
-  });
-  msg += `• সদস্যভিত্তিক বিল অংশ:\n`;
-  metrics.memberSummaries.forEach(m => {
-    msg += `  ▫️ *${m.name}*: ৳${Math.round(m.utilityTotal)} ${m.name === 'Imam' ? '(বুয়া বিল বাদে)' : ''}\n`;
-  });
-  msg += `\n`;
-
-  // 3. FINAL NET STATUS
-  msg += `📊 *[ ৩. মেসের চূড়ান্ত ব্যালেন্স (খাবার+সামগ্রী) ]*\n`;
-  metrics.memberSummaries.forEach(m => {
-    const statusText = m.balance > 0.01 
-      ? `ফেরত পাবেন +৳${m.balance.toFixed(2)}` 
-      : m.balance < -0.01 
-        ? `দিতে হবে -৳${Math.abs(m.balance).toFixed(2)}` 
-        : `ব্যালেন্স ৳০`;
-    msg += `• *${m.name}*: ${statusText}\n`;
-  });
-
-  // 4. TRANSFERS
-  msg += `\n🤝 *[ ৪. সরাসরি লেনদেন নির্দেশিকা ]*\n`;
-  if (metrics.settlementTransfers.length > 0) {
-    metrics.settlementTransfers.forEach(t => {
-      msg += `👉 *${t.from}* দেবেন ➔ *${t.to}*-কে ৳${t.amount.toFixed(2)}\n`;
-    });
-  } else {
-    msg += `সব হিসাব ক্লিয়ার! ✅\n`;
+  if (lastCalculatedMetrics) {
+    generateWhatsAppSummary(lastCalculatedMetrics, currentWaMode);
   }
-  msg += `────────────────────────\n`;
-  msg += `_মিল ট্র্যাকার (Meal Tracker) দ্বারা জেনারেট করা।_`;
+}
+window.setWhatsAppReportMode = setWhatsAppReportMode;
+
+function generateWhatsAppSummary(metrics, mode = currentWaMode) {
+  lastCalculatedMetrics = metrics;
+  const monthTitle = state.monthBn || state.month;
+  let msg = '';
+
+  if (mode === 'minimal') {
+    // Ultra Clean, Short & Minimal Summary (Default)
+    msg += `📋 *মেস সামারি • ${monthTitle}*\n`;
+    msg += `📊 মিল রেট: *৳${metrics.mealRate.toFixed(2)}* (মোট ${metrics.totalMeals} মিল)\n`;
+    msg += `─────────────────────\n`;
+    
+    // Member balances (One clean line per member)
+    msg += `👥 *সদস্যদের চূড়ান্ত হিসাব:*\n`;
+    metrics.memberSummaries.forEach(m => {
+      const bal = Math.round(m.balance);
+      const sign = bal > 0 ? `+৳${bal.toLocaleString()}` : bal < 0 ? `-৳${Math.abs(bal).toLocaleString()}` : `৳০`;
+      const status = bal > 0 ? `ফেরত পাবে ${sign}` : bal < 0 ? `দিতে হবে ${sign}` : `ব্যালেন্স ৳০`;
+      msg += `• *${m.name}*: ${m.meals} মিল ➔ *${status}*\n`;
+    });
+    
+    // Direct transfers
+    msg += `─────────────────────\n`;
+    msg += `🤝 *সরাসরি লেনদেন:*\n`;
+    if (metrics.settlementTransfers && metrics.settlementTransfers.length > 0) {
+      metrics.settlementTransfers.forEach(t => {
+        msg += `👉 *${t.from}* দেবে ➔ *${t.to}*-কে: *৳${Math.round(t.amount).toLocaleString()}*\n`;
+      });
+    } else {
+      msg += `সব হিসাব ক্লিয়ার! ✅\n`;
+    }
+    msg += `─────────────────────\n`;
+    msg += `_মিল ট্র্যাকার (Meal Tracker)_`;
+  } else {
+    // Detailed full breakdown
+    msg += `📋 *মিল ট্র্যাকার (Meal Tracker) - পূর্ণাঙ্গ মেস রিপোর্ট*\n`;
+    msg += `🗓️ *মাস:* ${monthTitle}\n`;
+    msg += `────────────────────────\n\n`;
+
+    // 1. MEAL REPORT
+    msg += `🍚 *[ ১. খাবারের মিল হিসাব ]*\n`;
+    msg += `• মোট খাবার বাজার: ৳${metrics.totalFoodBazar.toFixed(2)}\n`;
+    msg += `• মোট মিল: ${metrics.totalMeals} টি\n`;
+    msg += `• মিল রেট: ৳${metrics.mealRate.toFixed(2)}\n`;
+    msg += `• সদস্যভিত্তিক মিল:\n`;
+    metrics.memberSummaries.forEach(m => {
+      msg += `  ▫️ *${m.name}*: ${m.meals} মিল | খাবার খরচ: ৳${Math.round(m.mealCost)} | ক্যাশ জমা: ৳${Math.round(m.cashDeposit)}\n`;
+    });
+    msg += `\n`;
+
+    // 2. OTHERS COST REPORT
+    msg += `🧴 *[ ২. অন্যান্য খরচ (মেস সামগ্রী ও বিল) ]*\n`;
+    msg += `• মেস সামগ্রী মোট: ৳${metrics.totalSharedBazar.toFixed(2)} (মাথাপিছু ৳${(metrics.totalSharedBazar / (state.members.length || 1)).toFixed(2)})\n`;
+    metrics.memberSummaries.forEach(m => {
+      if (m.sharedPaid > 0) {
+        msg += `  ▫️ *${m.name}* সামগ্রী কিনেছেন: ৳${Math.round(m.sharedPaid)}\n`;
+      }
+    });
+    msg += `• মাসিক স্থায়ী বিল (ভাড়া ও ইউটিলিটি):\n`;
+    (state.fixedBills || []).forEach(b => {
+      msg += `  ▫️ ${b.title}: ৳${Number(b.amount).toLocaleString()} (${b.splitCount || state.members.length} জনের ভাগ)\n`;
+    });
+    msg += `• সদস্যভিত্তিক বিল অংশ:\n`;
+    metrics.memberSummaries.forEach(m => {
+      msg += `  ▫️ *${m.name}*: ৳${Math.round(m.utilityTotal)} ${m.name === 'Imam' ? '(বুয়া বিল বাদে)' : ''}\n`;
+    });
+    msg += `\n`;
+
+    // 3. FINAL NET STATUS
+    msg += `📊 *[ ৩. মেসের চূড়ান্ত ব্যালেন্স (খাবার+সামগ্রী) ]*\n`;
+    metrics.memberSummaries.forEach(m => {
+      const statusText = m.balance > 0.01 
+        ? `ফেরত পাবেন +৳${m.balance.toFixed(2)}` 
+        : m.balance < -0.01 
+          ? `দিতে হবে -৳${Math.abs(m.balance).toFixed(2)}` 
+          : `ব্যালেন্স ৳০`;
+      msg += `• *${m.name}*: ${statusText}\n`;
+    });
+
+    // 4. TRANSFERS
+    msg += `\n🤝 *[ ৪. সরাসরি লেনদেন নির্দেশিকা ]*\n`;
+    if (metrics.settlementTransfers.length > 0) {
+      metrics.settlementTransfers.forEach(t => {
+        msg += `👉 *${t.from}* দেবেন ➔ *${t.to}*-কে ৳${t.amount.toFixed(2)}\n`;
+      });
+    } else {
+      msg += `সব হিসাব ক্লিয়ার! ✅\n`;
+    }
+    msg += `────────────────────────\n`;
+    msg += `_মিল ট্র্যাকার (Meal Tracker) দ্বারা জেনারেট করা।_`;
+  }
 
   const previewEl = document.getElementById('whatsAppTextPreview');
   if (previewEl) previewEl.textContent = msg;
