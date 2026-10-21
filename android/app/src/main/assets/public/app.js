@@ -31,7 +31,7 @@ function fallbackCopy(text, successMessage) {
  */
 
 const INITIAL_DATA = {
-  dataVersion: '2026-10-21_GSHEET_SYNC_V2',
+  dataVersion: '2026-10-21_GSHEET_SYNC_V3',
   depositHistory: [
     { id: 'init-1', member: 'Sadhin', amount: 1397, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
     { id: 'init-2', member: 'Tanzid', amount: 1599, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
@@ -239,6 +239,7 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
     members: membersList,
     adminPin: (typeof state !== 'undefined' && state && state.adminPin) ? state.adminPin : '1234',
     deposits: freshDeposits,
+    depositHistory: [],
     bazar: [],
     meals: freshMeals,
     fixedBills: defaultBills,
@@ -256,7 +257,7 @@ const ADMIN_SESSION_KEY = 'MESS_ADMIN_LOGGED_IN';
 let state = loadState();
 let isAdmin = sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true';
 
-const GSHEET_SYNC_KEY = 'MESS_GSHEET_SYNC_V20261021_V2';
+const GSHEET_SYNC_KEY = 'MESS_GSHEET_SYNC_V20261021_V3';
 
 function loadState(monthId = currentMonthId) {
   const key = getStorageKeyForMonth(monthId);
@@ -597,25 +598,62 @@ function renderDashboard(metrics) {
     container.appendChild(card);
   });
 
-  // Recent Bazar List (Modern Card Items)
+  // Update Pill Buttons counts
+  const pillBaz = document.getElementById('pillBazarBtn');
+  if (pillBaz) {
+    const totalBazarCount = (state.bazar ? state.bazar.length : 0) + (state.sharedItems ? state.sharedItems.length : 0);
+    pillBaz.textContent = `🛒 বাজার (${totalBazarCount})`;
+  }
+
+  // Recent Bazar List (Modern Card Items - showing ALL bazar: Meal + Others)
   const recentContainer = document.getElementById('dashboardRecentBazar');
   if (recentContainer) {
-    const recentItems = state.bazar.slice(-5).reverse();
-    if (recentItems.length === 0) {
+    const foodEntries = (state.bazar || []).map(b => ({
+      id: b.id,
+      rawId: b.id,
+      isSharedTableItem: (b.category === 'shared' || b.type === 'shared'),
+      shopper: b.shopper || '',
+      item: b.item || '',
+      amount: Number(b.amount) || 0,
+      date: b.date || 'October',
+      category: (b.category === 'shared' || b.type === 'shared') ? 'shared' : 'food'
+    }));
+
+    const sharedEntries = (state.sharedItems || []).map((s, idx) => ({
+      id: 'shared-' + (s.id || idx),
+      rawId: s.id,
+      isSharedTableItem: true,
+      shopper: s.buyer || s.shopper || 'মেস',
+      item: s.name || s.item || 'মেস সামগ্রী',
+      amount: Number(s.price || s.amount) || 0,
+      date: s.date || 'October',
+      category: 'shared'
+    }));
+
+    const allBazarList = [...foodEntries, ...sharedEntries];
+    allBazarList.sort((a, b) => {
+      const dayA = parseInt(a.date, 10) || 0;
+      const dayB = parseInt(b.date, 10) || 0;
+      if (dayA !== dayB) return dayA - dayB;
+      return String(a.rawId).localeCompare(String(b.rawId));
+    });
+
+    if (allBazarList.length === 0) {
       recentContainer.innerHTML = `
         <div class="text-center text-muted" style="padding: 20px; font-size: 0.85rem;">
           এখনো কোনো বাজার খরচ যোগ করা হয়নি
         </div>
       `;
     } else {
-      recentContainer.innerHTML = recentItems.map(b => `
+      const displayItems = allBazarList.slice(-10).reverse();
+      recentContainer.innerHTML = displayItems.map(b => `
         <div class="tx-card-item">
           <div class="tx-card-left">
-            <div class="tx-avatar-chip">${b.shopper.charAt(0)}</div>
+            <div class="tx-avatar-chip">${(b.shopper || 'মেস').charAt(0)}</div>
             <div class="tx-details">
               <div class="tx-title" style="display:flex; align-items:center; gap:6px;">
                 <span>${b.item}</span>
-                ${(b.category === 'shared' || b.type === 'shared') 
+                ${b.category === 'shared' 
                   ? `<span class="badge" style="background:rgba(192,132,252,0.15); color:#c084fc; font-size:0.65rem; padding:1px 5px;">🧴 মেস সামগ্রী</span>`
                   : `<span class="badge" style="background:rgba(212,249,56,0.12); color:var(--accent); font-size:0.65rem; padding:1px 5px;">🍚 খাবার</span>`}
               </div>
@@ -628,8 +666,8 @@ function renderDashboard(metrics) {
             <span class="tx-amount">৳${Number(b.amount).toLocaleString()}</span>
             ${isAdmin ? `
               <div class="tx-actions">
-                <button class="btn-action-edit" onclick="openEditBazarModal(${b.id})" title="এডিট করুন">✏️</button>
-                <button class="btn-action-delete" onclick="deleteBazar(${b.id})" title="মুছে ফেলুন">🗑️</button>
+                <button class="btn-action-edit" onclick="openEditBazarModal('${b.rawId}', ${b.isSharedTableItem})" title="এডিট করুন">✏️</button>
+                <button class="btn-action-delete" onclick="deleteBazar('${b.rawId}', ${b.isSharedTableItem})" title="মুছে ফেলুন">🗑️</button>
               </div>
             ` : ''}
           </div>
@@ -2552,10 +2590,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (confirm('আপনি কি নিশ্চিত যে আসল গুগল শিটের ডাটায় ফিরিয়ে নিতে চান?')) {
-      state = JSON.parse(JSON.stringify(INITIAL_DATA));
-      saveState();
-      showToast('আসল গুগল শিট ডাটায় রিসেট সম্পন্ন হয়েছে!');
-    }
+        if (currentMonthId === '2026-10') {
+          state = JSON.parse(JSON.stringify(INITIAL_DATA));
+        } else {
+          state = createFreshMonthState(currentMonthId);
+        }
+        saveState();
+        renderAll();
+        showToast('রিসেট সম্পন্ন হয়েছে!');
+      }
   });
 
   // Export
