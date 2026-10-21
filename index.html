@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.3.4">
+  <link rel="stylesheet" href="style.css?v=1.3.5">
 </head>
 <body>
 
@@ -615,7 +615,7 @@
       </div>
       <form id="newMonthForm">
         <div class="modal-body">
-          <p class="text-muted text-sm">নতুন মাস শুরু করলে আগের সব মাসের হিসাব সুরক্ষিতভাবে সংরক্ষিত থাকবে। নতুন মাসের মিল ও বাজার খাতা ফ্রেশ (০ থেকে) শুরু হবে।</p>
+          <p class="text-muted text-sm">নতুন মাস শুরু করলে পূর্বের সকল মাসের খাতা ও রেকর্ড সুরক্ষিত সংরক্ষিত থাকবে।</p>
           
           <div class="form-row" style="margin-top: 14px;">
             <div class="form-field">
@@ -641,11 +641,14 @@
             </div>
           </div>
 
-          <div class="form-field" style="margin-top: 12px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="carryOverMembersCheckbox" checked>
-              <span>বর্তমান মেম্বারদের তালিকা নিয়ে যান (<span id="carryMembersNames" style="font-weight:600;">Sadhin, Tanzid, Akhirul, Imam</span>)</span>
-            </label>
+          <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: var(--radius-md); padding: 12px; margin-top: 14px; font-size: 0.82rem; line-height: 1.5;">
+            <div>👥 <b>সদস্য তালিকা:</b> বর্তমান সদস্যগণ অপরিবর্তিত থাকবে (<span id="carryMembersNames" style="color:#38bdf8; font-weight:600;">Sadhin, Tanzid, Akhirul, Imam</span>)</div>
+            <div style="margin-top: 5px;">🏠 <b>ফিক্সড মাসিক ফি:</b> বাসা ভাড়া, ওয়াইফাই ও বুয়া বিল বহাল থাকবে (স্ট্যাটাস: বকেয়া/Pending)।</div>
+            <div style="margin-top: 5px;">🔄 <b>বাকি সব হিসাব:</b> মিল, বাজার খরচ, মেস সামগ্রী ও জমা খাতা সম্পূর্ণ রিসেট হয়ে ০ থেকে শুরু হবে।</div>
+          </div>
+
+          <div class="form-field" style="margin-top: 12px; display: none;">
+            <input type="checkbox" id="carryOverMembersCheckbox" checked>
           </div>
         </div>
         <div class="modal-foot">
@@ -994,7 +997,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.9"></script>
-  <script src="app.js?v=1.3.4"></script>
+  <script src="app.js?v=1.3.5"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">

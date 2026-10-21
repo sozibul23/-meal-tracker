@@ -145,24 +145,15 @@ function loadMonthsList() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        allMonths = parsed.filter(m => m.id !== '2026-11');
-        if (allMonths.length === 0) {
-          allMonths = [{ id: '2026-10', name: 'October 2026', label: 'অক্টোবর ২০২৬', days: 31 }];
+        allMonths = parsed;
+        if (!allMonths.some(m => m.id === '2026-10')) {
+          allMonths.unshift({ id: '2026-10', name: 'October 2026', label: 'অক্টোবর ২০২৬', days: 31 });
         }
       }
     }
   } catch (e) {
     console.warn('Error reading months list', e);
   }
-
-  try {
-    localStorage.removeItem('MESS_DATA_2026-11');
-    if (currentMonthId === '2026-11') {
-      currentMonthId = '2026-10';
-      localStorage.setItem(MESS_ACTIVE_MONTH_KEY, '2026-10');
-    }
-    localStorage.setItem(MESS_ALL_MONTHS_KEY, JSON.stringify(allMonths));
-  } catch (e) {}
 }
 
 function saveMonthsList() {
@@ -200,36 +191,48 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
   const enName = MONTH_NAMES_EN[mIndex] + ' ' + year;
   const bnName = MONTH_NAMES_BN[mIndex] + ' ' + year;
 
-  const membersList = (carryOverMembers && typeof state !== 'undefined' && state && state.members && state.members.length > 0)
+  // 1. Members: Keep current members
+  const membersList = (carryOverMembers && typeof state !== 'undefined' && state && Array.isArray(state.members) && state.members.length > 0)
     ? [...state.members]
     : ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
 
+  // 2. Fixed monthly fees (bills): Keep fixed fees, status reset to 'Pending'
+  let defaultBills = [];
+  const sourceBills = (typeof state !== 'undefined' && state && Array.isArray(state.fixedBills) && state.fixedBills.length > 0)
+    ? state.fixedBills
+    : (INITIAL_DATA.fixedBills || [
+        { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
+        { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
+        { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
+      ]);
+
+  defaultBills = sourceBills.map((b, idx) => ({
+    id: Date.now() + idx,
+    title: b.title,
+    amount: Number(b.amount) || 0,
+    splitCount: b.splitCount || ((b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'))) ? 3 : membersList.length),
+    status: 'Pending',
+    note: b.note || ''
+  }));
+
+  // 3. Reset everything else to 0 / empty:
+  // - Meals: 0 for all days & members
   const freshMeals = {};
   for (let d = 1; d <= daysInMonth; d++) {
     freshMeals[d] = {};
     membersList.forEach(m => freshMeals[d][m] = 0);
   }
 
+  // - Deposits: 0 for all members
   const freshDeposits = {};
   membersList.forEach(m => freshDeposits[m] = 0);
 
-  let defaultBills = [];
-  if (typeof state !== 'undefined' && state && Array.isArray(state.fixedBills) && state.fixedBills.length > 0) {
-    defaultBills = state.fixedBills.map((b, idx) => ({
-      id: Date.now() + idx,
-      title: b.title,
-      amount: b.amount,
-      splitCount: b.splitCount || ((b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'))) ? 3 : 4),
-      status: 'Pending',
-      note: b.note || ''
-    }));
-  } else {
-    defaultBills = [
-      { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
-      { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
-      { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
-    ];
-  }
+  // - Payment statuses: Pending
+  const freshMemberBillStatus = {};
+  membersList.forEach(m => freshMemberBillStatus[m] = 'Pending');
+
+  const freshMemberSharedStatus = {};
+  membersList.forEach(m => freshMemberSharedStatus[m] = 'Pending');
 
   return {
     month: enName,
@@ -243,7 +246,10 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
     bazar: [],
     meals: freshMeals,
     fixedBills: defaultBills,
-    sharedItems: []
+    sharedItems: [],
+    memberBillStatus: freshMemberBillStatus,
+    memberSharedStatus: freshMemberSharedStatus,
+    memberCustomBillAdjustments: {}
   };
 }
 
