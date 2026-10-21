@@ -137,6 +137,17 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+[data-theme="light"] body {
+  background-color: #f8fafc !important;
+  background-image: 
+    radial-gradient(circle at 10% 12%, rgba(203, 245, 40, 0.07) 0%, transparent 40%),
+    radial-gradient(circle at 90% 18%, rgba(56, 189, 248, 0.06) 0%, transparent 45%),
+    radial-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px) !important;
+  background-size: 100% 100%, 100% 100%, 28px 28px !important;
+  background-attachment: fixed !important;
+  color: #0f172a !important;
+}
+
 .mono {
   font-family: 'JetBrains Mono', monospace;
 }
@@ -1857,4 +1868,317 @@ button.badge:hover {
 /* Smooth Transition across components */
 body, .header, .card, .stat-card, .member-card, .floating-dock, .modal-box, .quick-sheet-box, .pill-btn, .tx-card-item {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+
+/* ==========================================================================
+   COMPREHENSIVE LIGHT THEME RULES (Ultra Clean, High Contrast, 3D Look)
+   ========================================================================== */
+
+/* 1. Header & Brand */
+[data-theme="light"] .header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .brand-title {
+  color: #0f172a !important;
+}
+[data-theme="light"] .brand-sub {
+  color: #64748b !important;
+}
+
+/* 2. Month Control Bar */
+[data-theme="light"] .month-control-bar {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
+}
+[data-theme="light"] .month-arrow-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .month-arrow-btn:hover:not(:disabled) {
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .month-select {
+  color: #0f172a !important;
+  background: transparent !important;
+}
+
+/* 3. Top KPI Cards in Light Theme */
+[data-theme="light"] .stats-row .stat-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .stats-row .stat-card .stat-label {
+  color: #64748b !important;
+  font-weight: 800 !important;
+}
+[data-theme="light"] .stats-row .stat-card .stat-value {
+  color: #0f172a !important;
+  font-weight: 900 !important;
+}
+[data-theme="light"] .stats-row .stat-card .stat-desc {
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+
+/* Card 1: Keep Signature Cyber-Lime 3D Card */
+[data-theme="light"] .stats-row .stat-card:nth-child(1) {
+  background: linear-gradient(145deg, #e5ff54 0%, #cbf528 100%) !important;
+  color: #080b03 !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 24px rgba(203, 245, 40, 0.32), inset 0 1px 2px #ffffff !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(1) .stat-label {
+  color: #243604 !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(1) .stat-value {
+  color: #080b03 !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(1) .stat-desc {
+  color: #3b540a !important;
+}
+
+/* Card 2: Spent */
+[data-theme="light"] .stats-row .stat-card:nth-child(2) {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(2) .stat-value {
+  color: #0f172a !important;
+}
+
+/* Card 3: Remaining Cash */
+[data-theme="light"] .stats-row .stat-card:nth-child(3) {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(3) .stat-value {
+  color: #0a0d14 !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(3) .stat-value.balance-due {
+  color: #dc2626 !important;
+}
+
+/* Card 4: Meal Rate */
+[data-theme="light"] .stats-row .stat-card:nth-child(4) {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .stats-row .stat-card:nth-child(4) .stat-value {
+  color: #d97706 !important;
+}
+
+/* 4. Quick Rent & Utility Banner */
+.home-rent-banner {
+  background: rgba(56, 189, 248, 0.08) !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+.home-rent-banner-title {
+  color: #38bdf8 !important;
+}
+#kpiFixedBillsBannerText {
+  color: var(--text-main) !important;
+}
+[data-theme="light"] .home-rent-banner {
+  background: #f0f9ff !important;
+  border: 1px solid #bae6fd !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.06) !important;
+}
+[data-theme="light"] .home-rent-banner-title {
+  color: #0284c7 !important;
+}
+[data-theme="light"] #kpiFixedBillsBannerText {
+  color: #0f172a !important;
+}
+
+/* 5. Section Titles & Text */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] .pane-header h2 {
+  color: #0f172a !important;
+}
+[data-theme="light"] .pane-header p,
+[data-theme="light"] .text-muted,
+[data-theme="light"] .text-dim {
+  color: #64748b !important;
+}
+
+/* 6. Member Cards */
+[data-theme="light"] .member-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.07), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .member-card:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 14px 32px -4px rgba(15, 23, 42, 0.12) !important;
+}
+[data-theme="light"] .member-name {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+[data-theme="light"] .member-meals-sub {
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+[data-theme="light"] .member-balance-box .text-muted {
+  color: #64748b !important;
+}
+[data-theme="light"] .balance-num.surplus {
+  color: #16a34a !important;
+}
+[data-theme="light"] .balance-num.due {
+  color: #dc2626 !important;
+}
+[data-theme="light"] .balance-num.neutral {
+  color: #64748b !important;
+}
+[data-theme="light"] .member-tap-hint {
+  color: #64748b !important;
+}
+[data-theme="light"] .member-card b.mono {
+  color: #0f172a !important;
+}
+[data-theme="light"] .member-card .badge-paid,
+[data-theme="light"] .member-card .badge-green {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0 !important;
+}
+[data-theme="light"] .member-card .badge-pending,
+[data-theme="light"] .member-card .badge-red {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fecaca !important;
+}
+
+/* 7. Direct Settlement Box */
+[data-theme="light"] .settlement-box {
+  background: #ffffff !important;
+  color: #0a0d14 !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.07) !important;
+}
+[data-theme="light"] .settlement-box h3 {
+  color: #0a0d14 !important;
+}
+[data-theme="light"] .settlement-box .badge-subtle {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+[data-theme="light"] .settlement-box .transfer-list li,
+[data-theme="light"] .settlement-box .transfer-item {
+  color: #0f172a !important;
+}
+[data-theme="light"] .btn-copy-summary {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* 8. Tabs, Pill Buttons & Transactions */
+[data-theme="light"] .card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .pill-btn {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+}
+[data-theme="light"] .pill-btn:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .pill-btn.active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #0f172a !important;
+}
+[data-theme="light"] .pill-btn.active .tab-item-badge {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+}
+[data-theme="light"] .tx-card-item {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+}
+[data-theme="light"] .tx-details h4,
+[data-theme="light"] .tx-details .tx-title {
+  color: #0f172a !important;
+}
+[data-theme="light"] .tx-meta {
+  color: #64748b !important;
+}
+[data-theme="light"] .tx-amount {
+  color: #0f172a !important;
+}
+
+/* 9. Tables, Inputs & Modals */
+[data-theme="light"] .table {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .table th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .table td {
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .meal-count-input {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .modal-box,
+[data-theme="light"] .quick-sheet-box {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16) !important;
+}
+[data-theme="light"] .modal-title,
+[data-theme="light"] .quick-sheet-title {
+  color: #0f172a !important;
+}
+[data-theme="light"] .form-label {
+  color: #475569 !important;
+}
+[data-theme="light"] .form-control {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .floating-dock {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14) !important;
+}
+[data-theme="light"] .dock-btn {
+  color: #64748b !important;
+}
+[data-theme="light"] .dock-btn.active {
+  color: #0f172a !important;
+}
+[data-theme="light"] .dock-fab {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.28) !important;
 }

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.2.3">
+  <link rel="stylesheet" href="style.css?v=1.2.4">
 </head>
 <body>
 
@@ -159,11 +159,11 @@
 
       <!-- Quick Rent & Utilities Banner on Home -->
       <div style="margin: 12px 0 6px 0;">
-        <button type="button" class="btn btn-outline btn-sm" onclick="switchTab('utilities')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 14px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); cursor: pointer;">
-          <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #38bdf8; font-size: 0.88rem;">
+        <button type="button" class="btn btn-outline btn-sm home-rent-banner" onclick="switchTab('utilities')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 14px; cursor: pointer;">
+          <span class="home-rent-banner-title" style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.88rem;">
             🏠 বাসা ভাড়া, বুয়া ও ইউটিলিটি বিল
           </span>
-          <span class="mono" style="font-weight: 800; color: var(--text-main); font-size: 0.85rem;" id="kpiFixedBillsBannerText">
+          <span class="mono" style="font-weight: 800; font-size: 0.85rem;" id="kpiFixedBillsBannerText">
             মোট ৳১৭,৩৯০ →
           </span>
         </button>
@@ -979,7 +979,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.0.8"></script>
-  <script src="app.js?v=1.2.3"></script>
+  <script src="app.js?v=1.2.4"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
