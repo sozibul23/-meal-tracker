@@ -2862,16 +2862,14 @@ window.openMemberDetailsModal = function(memberName) {
   if (!state.memberSharedStatus) state.memberSharedStatus = {};
   const defaultS = (m.sharedPaid >= m.sharedCost && m.sharedCost > 0) ? 'Paid' : 'Pending';
   const sStatus = state.memberSharedStatus[m.name] || defaultS;
-  const isSharedPaid = sStatus === 'Paid';
-  const sClass = isSharedPaid ? 'badge-green' : 'badge-red';
-  const sText = isSharedPaid ? 'Paid' : 'Pending';
+  const sClass = sStatus === 'Paid' ? 'badge-green' : 'badge-red';
+  const sText = sStatus === 'Paid' ? 'Paid' : 'Pending';
 
   // Bill status
   if (!state.memberBillStatus) state.memberBillStatus = {};
   const bStatus = state.memberBillStatus[m.name] || 'Pending';
-  const isBillPaid = bStatus === 'Paid';
-  const bClass = isBillPaid ? 'badge-green' : 'badge-red';
-  const bText = isBillPaid ? 'Paid' : 'Pending';
+  const bClass = bStatus === 'Paid' ? 'badge-green' : 'badge-red';
+  const bText = bStatus === 'Paid' ? 'Paid' : 'Pending';
 
   const bodyEl = document.getElementById('modalMemberBody');
   if (bodyEl) {
