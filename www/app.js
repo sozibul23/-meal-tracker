@@ -40,7 +40,7 @@ const INITIAL_DATA = {
   month: 'October 2026',
   monthBn: 'অক্টোবর ২০২৬',
   members: ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'],
-  adminPin: '1234',
+  adminPin: '1357',
   deposits: {
     Sadhin: 1397,
     Tanzid: 1599,
@@ -289,7 +289,7 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
     monthId: monthId,
     daysInMonth: daysInMonth,
     members: membersList,
-    adminPin: (typeof state !== 'undefined' && state && state.adminPin) ? state.adminPin : '1234',
+    adminPin: (typeof state !== 'undefined' && state && state.adminPin && state.adminPin !== '1234') ? state.adminPin : '1357',
     deposits: freshDeposits,
     depositHistory: [],
     bazar: [],
@@ -354,6 +354,9 @@ function loadState(monthId = currentMonthId) {
       }
       ensureDepositHistory(parsed);
       parsed = sanitizeMonthState(parsed, monthId);
+      if (!parsed.adminPin || parsed.adminPin === '1234') {
+        parsed.adminPin = '1357';
+      }
       return parsed;
     }
   } catch (e) {
@@ -2218,7 +2221,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const pin = document.getElementById('adminPinInput').value.trim();
-    if (pin === (state.adminPin || '1234')) {
+    if (pin === '1357' || pin === (state.adminPin || '1357')) {
+      state.adminPin = '1357';
+      saveState();
       isAdmin = true;
       sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
       closeAdminModal();
