@@ -1,3 +1,4 @@
+.desktop-only { display: inline; }
 /* ==========================================================================
    TOYCAD / CYBER-LIME PREMIUM THEME - MEAL TRACKER (মিল ট্র্যাকার)
    Aesthetic: Ultra-Modern Obsidian Dark + Electric Lime Accents
@@ -1157,179 +1158,352 @@ button.badge:hover {
    MOBILE RESPONSIVENESS (PHONES: 320px - 640px)
    ========================================================================== */
 @media (max-width: 640px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* 1. Sleek Compact 1-Row Header */
   .header {
-    padding: 8px 12px 6px;
+    padding: 8px 12px !important;
   }
 
   .header-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   .brand {
-    justify-content: space-between;
-    width: 100%;
+    width: auto !important;
+    gap: 8px !important;
+    flex: 1 1 auto !important;
+  }
+
+  .brand-logo {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 0.95rem !important;
   }
 
   .brand-title {
-    font-size: 1.1rem;
+    font-size: 1.05rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .brand-sub {
+    font-size: 0.65rem !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
   }
 
   .header-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 5px !important;
+    flex: 0 0 auto !important;
   }
 
-  .header-controls .cloud-pill,
   .header-controls .btn-admin-mode {
-    padding: 6px 10px;
-    font-size: 0.74rem;
-    flex: 1 1 auto;
-    text-align: center;
-    justify-content: center;
+    padding: 5px 9px !important;
+    font-size: 0.72rem !important;
+    flex: 0 0 auto !important;
+    border-radius: var(--radius-pill) !important;
+    gap: 4px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+
+  #quickWhatsAppBtn {
+    padding: 0 10px !important;
+    border-radius: var(--radius-pill) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    width: 34px !important;
+  }
+
+  #quickWhatsAppBtn svg {
+    margin: 0 !important;
+  }
+
+  .btn-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    border-radius: 50% !important;
   }
 
   .admin-banner-inner {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
+    padding: 8px 12px !important;
   }
 
-  /* Month Control Bar */
+  /* 2. Month Control Bar: 1-line layout */
   .month-control-bar {
-    border-radius: var(--radius-md);
-    flex-direction: column;
-    align-items: stretch;
-    padding: 10px 12px;
-    gap: 10px;
+    border-radius: var(--radius-md) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 7px 10px !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
   }
 
   .month-picker {
-    justify-content: center;
-    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: auto !important;
+    flex: 1 1 auto !important;
+    gap: 3px !important;
+  }
+
+  .month-arrow-btn {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 1.1rem !important;
+    flex: 0 0 28px !important;
+  }
+
+  .month-select-wrapper {
+    flex: 1 1 auto !important;
+    position: relative !important;
   }
 
   .month-select {
-    padding: 6px 26px 6px 30px;
-    font-size: 0.82rem;
+    padding: 4px 18px 4px 24px !important;
+    font-size: 0.78rem !important;
+    height: 28px !important;
+  }
+
+  .cal-icon {
+    left: 6px !important;
+    font-size: 0.75rem !important;
   }
 
   .month-actions {
-    width: 100%;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    gap: 4px !important;
   }
 
   .month-actions button {
-    width: 100%;
-    justify-content: center;
+    width: auto !important;
+    padding: 4px 9px !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+    height: 28px !important;
+    min-height: 28px !important;
   }
 
-  /* 4 Stat Cards: Perfect 2-column grid without overflow */
+  /* 3. Stat Cards 2x2: Clean, Non-Overflowing, Balanced */
   .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    margin-bottom: 14px;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
   }
 
   .stat-card {
-    padding: 12px 10px;
-    border-radius: var(--radius-md);
+    padding: 10px 10px 9px !important;
+    border-radius: var(--radius-md) !important;
+    min-height: 84px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
   }
 
   .stat-label {
-    font-size: 0.68rem;
-    margin-bottom: 4px;
-    line-height: 1.2;
+    font-size: 0.64rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.2px !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 2px !important;
   }
 
   .stat-value {
-    font-size: 1.3rem;
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    margin: 2px 0 1px !important;
+    line-height: 1.15 !important;
   }
 
   .stat-desc {
-    font-size: 0.65rem;
-    margin-top: 3px;
+    font-size: 0.62rem !important;
+    line-height: 1.25 !important;
+    color: var(--text-muted) !important;
+    word-break: break-word !important;
+    margin-top: 2px !important;
   }
 
-  /* Member Cards: 2 per row for super minimal and space-saving mobile view */
-  .members-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-    margin-bottom: 14px !important;
-  }
-
-  .member-card {
-    padding: 12px 10px !important;
+  /* 4. Quick Rent & Utilities Banner */
+  .home-rent-banner {
+    padding: 8px 12px !important;
     border-radius: var(--radius-md) !important;
   }
 
+  .home-rent-banner-title {
+    font-size: 0.8rem !important;
+  }
+
+  /* 5. Pane Header */
+  .pane-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+  }
+
+  .pane-header h2 {
+    font-size: 0.98rem !important;
+    margin-bottom: 2px !important;
+    font-weight: 800 !important;
+  }
+
+  .pane-header p {
+    font-size: 0.68rem !important;
+    margin-bottom: 0 !important;
+    line-height: 1.2 !important;
+  }
+
+  .pane-actions {
+    display: flex !important;
+    gap: 5px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .pane-actions .btn {
+    padding: 4px 8px !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* 6. Member Cards Grid: 2 per row with proper spacing */
+  .members-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .member-card {
+    padding: 10px 10px 8px !important;
+    border-radius: var(--radius-md) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
   .member-avatar {
-    width: 32px !important;
-    height: 32px !important;
-    font-size: 0.85rem !important;
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.8rem !important;
   }
 
   .member-name {
-    font-size: 0.88rem !important;
+    font-size: 0.86rem !important;
     font-weight: 700 !important;
   }
 
   .member-card-head {
-    margin-bottom: 6px !important;
-    gap: 6px !important;
+    margin-bottom: 4px !important;
+    gap: 4px !important;
   }
 
   .member-meals-sub {
-    font-size: 0.68rem !important;
+    font-size: 0.66rem !important;
   }
 
   .member-balance-box {
-    margin: 6px 0 6px !important;
+    margin: 4px 0 !important;
   }
 
   .member-balance-box .text-sm {
-    font-size: 0.65rem !important;
+    font-size: 0.62rem !important;
     line-height: 1.1 !important;
-    display: block !important;
   }
 
   .balance-num {
-    font-size: 1.25rem !important;
+    font-size: 1.22rem !important;
+    font-weight: 800 !important;
     letter-spacing: -0.02em !important;
   }
 
-  .member-breakdown {
-    font-size: 0.7rem !important;
-    padding-top: 6px !important;
-    margin-top: 6px !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 2px !important;
+  .member-tap-hint {
+    font-size: 0.68rem !important;
   }
 
   .card {
-    padding: 16px 12px;
-    border-radius: var(--radius-md);
-    margin-bottom: 14px;
+    padding: 14px 10px !important;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: 12px !important;
   }
 
   .two-col-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
 
   .form-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
+  /* 7. Container bottom padding so floating dock never overlaps content */
   .container {
-    padding: 12px 10px 70px;
+    padding: 8px 10px 120px !important;
+  }
+
+  /* 8. Floating dock sizing on small screens */
+  .floating-dock {
+    bottom: 12px !important;
+    padding: 4px 6px !important;
+    gap: 2px !important;
+    max-width: 96vw !important;
+  }
+
+  .dock-btn {
+    padding: 5px 7px !important;
+    font-size: 0.68rem !important;
+    gap: 2px !important;
+  }
+
+  .dock-btn span {
+    font-size: 0.62rem !important;
+  }
+
+  .dock-fab {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.3rem !important;
+    margin: 0 3px !important;
+  }
+
+  /* 9. Modals on mobile: full width, smooth touch */
+  .modal-box {
+    width: 95% !important;
+    max-width: 420px !important;
+    max-height: 88vh !important;
+    padding: 14px !important;
+    margin: auto !important;
   }
 }
+
 /* ==========================================================================
    MEAL RATE ANIMATED HIGHLIGHT (Live Glow & Shimmer)
    ========================================================================== */

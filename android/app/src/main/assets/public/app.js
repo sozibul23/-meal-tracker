@@ -571,11 +571,11 @@ function renderKPIs(metrics) {
   const depDescEl = document.getElementById('kpiDepositDesc');
   if (depDescEl) {
     depDescEl.textContent = metrics.totalSharedBazar > 0
-      ? `ক্যাশ ${formatBDT(metrics.totalCashDeposit)} + মেস সামগ্রী ${formatBDT(metrics.totalSharedBazar)}`
+      ? `ক্যাশ ${formatBDT(metrics.totalCashDeposit)} + মেস ${formatBDT(metrics.totalSharedBazar)}`
       : `${state.members.length} জন সদস্যের জমা`;
   }
   document.getElementById('kpiTotalBazar').textContent = formatBDT(metrics.totalBazar);
-  document.getElementById('kpiBazarCount').textContent = `খাবার: ${formatBDT(metrics.totalFoodBazar)} • মেস সামগ্রী: ${formatBDT(metrics.totalSharedBazar)}`;
+  document.getElementById('kpiBazarCount').textContent = `খাবার ${formatBDT(metrics.totalFoodBazar)} + মেস ${formatBDT(metrics.totalSharedBazar)}`;
   
   const remEl = document.getElementById('kpiRemainingFund');
   const remCash = metrics.remainingCash !== undefined ? metrics.remainingCash : metrics.remainingFund;
@@ -593,8 +593,8 @@ function renderKPIs(metrics) {
   const fundStatusEl = document.getElementById('kpiFundStatus');
   if (fundStatusEl) {
     fundStatusEl.textContent = remCash >= 0 
-      ? 'ক্যাশের জমা থেকে খাবার বাজার সম্পন্ন' 
-      : 'ঘাটতি (ফান্ডে অতিরিক্ত ক্যাশ লাগবে)';
+      ? 'ক্যাশ ব্যালেন্স উদ্বৃত্ত' 
+      : 'ঘাটতি (ফান্ডে ক্যাশ লাগবে)';
   }
 
   document.getElementById('kpiMealRate').textContent = `৳${metrics.mealRate.toFixed(2)}`;
@@ -666,7 +666,7 @@ function renderDashboard(metrics) {
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.75rem;">
         <span class="text-muted">জমা: <b class="mono" style="color:var(--text-main);">৳${Math.round(m.totalDeposit).toLocaleString()}</b></span>
-        <span class="member-tap-hint">বিস্তারিত দেখুন →</span>
+        <span class="member-tap-hint" style="color:#38bdf8; font-weight:600;">বিস্তারিত →</span>
       </div>
     `;
     container.appendChild(card);
