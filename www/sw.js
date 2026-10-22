@@ -1,16 +1,18 @@
-const CACHE_NAME = 'meal-tracker-v1.3.7';
+const CACHE_NAME = 'meal-tracker-v1.3.8';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json',
-  '/icon.svg'
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './icon.svg'
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS).catch(err => console.warn('Cache addAll warning:', err));
+    })
   );
   self.skipWaiting();
 });
@@ -27,9 +29,10 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
     caches.match(e.request).then((res) => {
-      return res || fetch(e.request).catch(() => caches.match('/index.html'));
+      return res || fetch(e.request).catch(() => caches.match('./index.html'));
     })
   );
 });

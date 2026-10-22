@@ -221,21 +221,31 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
   const enName = MONTH_NAMES_EN[mIndex] + ' ' + year;
   const bnName = MONTH_NAMES_BN[mIndex] + ' ' + year;
 
-  // 1. Members: Keep current members
-  const membersList = (carryOverMembers && typeof state !== 'undefined' && state && Array.isArray(state.members) && state.members.length > 0)
-    ? [...state.members]
-    : ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
+  // 1. Members: Keep current members safely
+  let membersList = ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
+  try {
+    if (carryOverMembers && typeof state !== 'undefined' && state && Array.isArray(state.members) && state.members.length > 0) {
+      membersList = [...state.members];
+    }
+  } catch (e) {}
 
   // 2. Fixed monthly fees (bills): Keep fixed fees, status reset to 'Pending'
   const isNovOrLater = monthId >= '2026-11';
   let defaultBills = [];
-  const sourceBills = (typeof state !== 'undefined' && state && Array.isArray(state.fixedBills) && state.fixedBills.length > 0)
-    ? state.fixedBills
-    : (INITIAL_DATA.fixedBills || [
-        { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
-        { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
-        { id: 3, title: 'Bua Bill (খালা বিল)', amount: (isNovOrLater ? 2000 : 700), splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
-      ]);
+  let sourceBills = null;
+  try {
+    if (typeof state !== 'undefined' && state && Array.isArray(state.fixedBills) && state.fixedBills.length > 0) {
+      sourceBills = state.fixedBills;
+    }
+  } catch (e) {}
+
+  if (!sourceBills) {
+    sourceBills = (typeof INITIAL_DATA !== 'undefined' && INITIAL_DATA && INITIAL_DATA.fixedBills) ? INITIAL_DATA.fixedBills : [
+      { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
+      { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
+      { id: 3, title: 'Bua Bill (খালা বিল)', amount: (isNovOrLater ? 2000 : 700), splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
+    ];
+  }
 
   defaultBills = sourceBills.map((b, idx) => {
     const isBua = (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua')));
@@ -300,8 +310,13 @@ const ADMIN_SESSION_KEY = 'MESS_ADMIN_LOGGED_IN';
 const GSHEET_SYNC_KEY = 'MESS_GSHEET_SYNC_V20261021_V3';
 
 // App State
-let state = loadState();
-let isAdmin = sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true';
+var state = null;
+var isAdmin = false;
+try {
+  isAdmin = sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true';
+} catch (e) {}
+
+state = loadState();
 
 function loadState(monthId = currentMonthId) {
   const key = getStorageKeyForMonth(monthId);
@@ -2735,7 +2750,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Register SW if supported
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(err => {
+      navigator.serviceWorker.register('./sw.js').catch(err => {
         console.log('SW registration note:', err);
       });
     });
