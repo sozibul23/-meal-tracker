@@ -197,23 +197,32 @@ function createFreshMonthState(monthId, carryOverMembers = true) {
     : ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
 
   // 2. Fixed monthly fees (bills): Keep fixed fees, status reset to 'Pending'
+  const isNovOrLater = monthId >= '2026-11';
   let defaultBills = [];
   const sourceBills = (typeof state !== 'undefined' && state && Array.isArray(state.fixedBills) && state.fixedBills.length > 0)
     ? state.fixedBills
     : (INITIAL_DATA.fixedBills || [
         { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
         { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Pending', note: '৪ জনের সমান ভাগ' },
-        { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
+        { id: 3, title: 'Bua Bill (খালা বিল)', amount: (isNovOrLater ? 2000 : 700), splitCount: 3, status: 'Pending', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
       ]);
 
-  defaultBills = sourceBills.map((b, idx) => ({
-    id: Date.now() + idx,
-    title: b.title,
-    amount: Number(b.amount) || 0,
-    splitCount: b.splitCount || ((b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'))) ? 3 : membersList.length),
-    status: 'Pending',
-    note: b.note || ''
-  }));
+  defaultBills = sourceBills.map((b, idx) => {
+    const isBua = (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua')));
+    let amt = Number(b.amount) || 0;
+    // Bua bill is 2000 from November onwards
+    if (isBua && isNovOrLater) {
+      amt = 2000;
+    }
+    return {
+      id: Date.now() + idx,
+      title: b.title,
+      amount: amt,
+      splitCount: b.splitCount || (isBua ? 3 : membersList.length),
+      status: 'Pending',
+      note: b.note || (isBua ? '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' : '')
+    };
+  });
 
   // 3. Reset everything else to 0 / empty:
   // - Meals: 0 for all days & members
@@ -286,6 +295,15 @@ function loadState(monthId = currentMonthId) {
         (parsed.members || []).forEach(m => parsed.deposits[m] = 0);
       }
       ensureDepositHistory(parsed);
+      // Ensure bua bill is 2000 from November 2026 onwards
+      if (monthId >= '2026-11' && Array.isArray(parsed.fixedBills)) {
+        parsed.fixedBills.forEach(b => {
+          const isBua = b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'));
+          if (isBua && (b.amount === 700 || !b.amount)) {
+            b.amount = 2000;
+          }
+        });
+      }
       return parsed;
     }
   } catch (e) {
