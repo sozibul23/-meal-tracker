@@ -267,12 +267,11 @@ loadMonthsList();
 const STORAGE_KEY = 'MESS_MINIMAL_DATA_V2';
 const THEME_KEY = 'MESS_THEME';
 const ADMIN_SESSION_KEY = 'MESS_ADMIN_LOGGED_IN';
+const GSHEET_SYNC_KEY = 'MESS_GSHEET_SYNC_V20261021_V3';
 
 // App State
 let state = loadState();
 let isAdmin = sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true';
-
-const GSHEET_SYNC_KEY = 'MESS_GSHEET_SYNC_V20261021_V3';
 
 function loadState(monthId = currentMonthId) {
   const key = getStorageKeyForMonth(monthId);
