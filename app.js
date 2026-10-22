@@ -2770,7 +2770,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (openNewMonthModalBtn) {
     openNewMonthModalBtn.addEventListener('click', () => {
       if (!isAdmin) {
-        showToast('নতুন মাস শুরু করতে এডমিন লগইন করুন');
+        openAdminModal();
+        showToast('নতুন মাস শুরু করতে এডমিন পিন দিন');
         return;
       }
       allMonths.sort((a, b) => a.id.localeCompare(b.id));
