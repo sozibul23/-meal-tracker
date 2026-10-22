@@ -115,21 +115,22 @@ function listenToMonth(monthId, onRemoteChange) {
     activeDocUnsubscribe = null;
   }
 
-  const docPath = getFirestoreDocPath(activeMonthDocId);
+  const currentListeningMonth = activeMonthDocId;
+  const docPath = getFirestoreDocPath(currentListeningMonth);
 
   activeDocUnsubscribe = db.doc(docPath).onSnapshot((doc) => {
     if (doc.exists) {
       const cloudData = doc.data();
       if (cloudData && remoteStateChangeCallback) {
         isSyncingFromRemote = true;
-        remoteStateChangeCallback(cloudData);
+        remoteStateChangeCallback(cloudData, currentListeningMonth);
         isSyncingFromRemote = false;
         updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
       }
     } else {
       console.log(`No document for ${docPath} in Firestore yet. Pushing local state...`);
-      if (typeof state !== 'undefined') {
-        pushStateToFirebase(state);
+      if (typeof state !== 'undefined' && state) {
+        pushStateToFirebase(state, currentListeningMonth);
       }
     }
   }, (error) => {
@@ -139,10 +140,11 @@ function listenToMonth(monthId, onRemoteChange) {
 }
 
 // Push local changes to Firestore
-function pushStateToFirebase(currentState) {
+function pushStateToFirebase(currentState, overrideMonthId) {
   if (!db || !isCloudConnected || isSyncingFromRemote) return;
 
-  const docPath = getFirestoreDocPath(activeMonthDocId);
+  const targetMonthId = overrideMonthId || (currentState && currentState.monthId) || activeMonthDocId || '2026-10';
+  const docPath = getFirestoreDocPath(targetMonthId);
   db.doc(docPath).set(currentState)
     .then(() => {
       updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');

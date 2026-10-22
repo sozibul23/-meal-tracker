@@ -183,6 +183,36 @@ function getStorageKeyForMonth(monthId) {
   return 'MESS_DATA_' + monthId;
 }
 
+function sanitizeMonthState(st, monthId) {
+  if (!st || typeof st !== 'object') return createFreshMonthState(monthId);
+
+  // October 2026 is the base imported month
+  if (monthId === '2026-10') return st;
+
+  // Non-October months MUST NEVER contain October's data!
+  const hasOctoberBazar = Array.isArray(st.bazar) && st.bazar.some(b => b.date && String(b.date).toLowerCase().includes('october'));
+  const hasOctoberDeposits = Array.isArray(st.depositHistory) && st.depositHistory.some(d => d.date && String(d.date).toLowerCase().includes('october'));
+  const hasOctoberMonth = st.month && String(st.month).toLowerCase().includes('october');
+
+  if (hasOctoberBazar || hasOctoberDeposits || hasOctoberMonth) {
+    console.warn(`[PURGE] Detected accidental October data inside ${monthId}. Purging completely to clean month state.`);
+    return createFreshMonthState(monthId);
+  }
+
+  // Ensure fixed bills in November or later have Bua bill = 2000
+  if (monthId >= '2026-11' && Array.isArray(st.fixedBills)) {
+    st.fixedBills.forEach(b => {
+      const isBua = b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'));
+      if (isBua && (b.amount === 700 || !b.amount)) {
+        b.amount = 2000;
+      }
+    });
+  }
+
+  return st;
+}
+
+
 function createFreshMonthState(monthId, carryOverMembers = true) {
   const parts = monthId.split('-');
   const year = parseInt(parts[0], 10) || 2026;
@@ -286,23 +316,29 @@ function loadState(monthId = currentMonthId) {
       }
     }
 
+    // Force purge November 2026 if it was contaminated with October data
+    if (monthId === '2026-11') {
+      const novPurgeKey = 'MESS_NOV_FORCE_PURGE_V4';
+      if (!localStorage.getItem(novPurgeKey)) {
+        localStorage.setItem(novPurgeKey, 'true');
+        const freshNov = createFreshMonthState('2026-11');
+        localStorage.setItem(key, JSON.stringify(freshNov));
+        if (typeof pushStateToFirebase === 'function') {
+          pushStateToFirebase(freshNov, '2026-11');
+        }
+        return freshNov;
+      }
+    }
+
     const raw = localStorage.getItem(key);
     if (raw) {
-      const parsed = JSON.parse(raw);
+      let parsed = JSON.parse(raw);
       if (!parsed.deposits) {
         parsed.deposits = {};
         (parsed.members || []).forEach(m => parsed.deposits[m] = 0);
       }
       ensureDepositHistory(parsed);
-      // Ensure bua bill is 2000 from November 2026 onwards
-      if (monthId >= '2026-11' && Array.isArray(parsed.fixedBills)) {
-        parsed.fixedBills.forEach(b => {
-          const isBua = b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'));
-          if (isBua && (b.amount === 700 || !b.amount)) {
-            b.amount = 2000;
-          }
-        });
-      }
+      parsed = sanitizeMonthState(parsed, monthId);
       return parsed;
     }
   } catch (e) {
@@ -1849,11 +1885,17 @@ window.switchMonth = function(monthId) {
   currentMonthId = monthId;
   localStorage.setItem(MESS_ACTIVE_MONTH_KEY, currentMonthId);
 
-  state = loadState(currentMonthId);
+  let loaded = loadState(currentMonthId);
+  state = sanitizeMonthState(loaded, currentMonthId);
+  saveStateLocalOnly();
 
   if (typeof listenToMonth === 'function') {
-    listenToMonth(currentMonthId, (remoteState) => {
+    listenToMonth(currentMonthId, (remoteState, sourceMonthId) => {
+      const rMonth = sourceMonthId || remoteState.monthId;
+      if (rMonth && rMonth !== currentMonthId) return;
+
       if (remoteState && remoteState.members) {
+        remoteState = sanitizeMonthState(remoteState, currentMonthId);
         state = remoteState;
         saveStateLocalOnly();
         renderAll();
@@ -2067,6 +2109,21 @@ function showToast(msg) {
 
 // Setup Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+  // Immediate auto-purge if November was contaminated with copied October data
+  try {
+    const novPurgeKey = 'MESS_NOV_FORCE_PURGE_V4';
+    if (!localStorage.getItem(novPurgeKey)) {
+      localStorage.setItem(novPurgeKey, 'true');
+      const freshNov = createFreshMonthState('2026-11');
+      localStorage.setItem('MESS_DATA_2026-11', JSON.stringify(freshNov));
+      if (typeof pushStateToFirebase === 'function') {
+        pushStateToFirebase(freshNov, '2026-11');
+      }
+      if (currentMonthId === '2026-11') {
+        state = freshNov;
+      }
+    }
+  } catch (e) {}
   // Theme Toggle with dynamic icon & smooth UI
   const updateThemeUI = (theme) => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -2686,23 +2743,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Firebase Realtime Sync Setup
   if (typeof initFirebase === 'function') {
-    initFirebase((remoteState) => {
+    initFirebase((remoteState, sourceMonthId) => {
       if (remoteState && remoteState.members) {
-        // If remote state in Firestore is from an older data version, push new Google Sheet data
-        if (remoteState.dataVersion !== INITIAL_DATA.dataVersion) {
-          console.log('Syncing fresh Google Sheet data to Firestore...');
-          pushStateToFirebase(state);
+        const rMonth = sourceMonthId || remoteState.monthId;
+        if (rMonth && rMonth !== currentMonthId) {
+          console.warn(`Ignoring remote state for ${rMonth} because active month is ${currentMonthId}`);
           return;
         }
+
+        remoteState = sanitizeMonthState(remoteState, currentMonthId);
+
+        if (currentMonthId === '2026-10' && remoteState.dataVersion !== INITIAL_DATA.dataVersion) {
+          console.log('Syncing fresh Google Sheet data to Firestore...');
+          pushStateToFirebase(state, '2026-10');
+          return;
+        }
+
         state = remoteState;
         ensureDepositHistory(state);
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          localStorage.setItem(getStorageKeyForMonth(currentMonthId), JSON.stringify(state));
         } catch (e) {}
         renderAll();
         showToast('🔄 ক্লাউড থেকে সর্বশেষ তথ্য লাইভ সিঙ্ক হয়েছে!');
       }
-    });
+    }, null, currentMonthId);
   }
 
   // Firebase Config Modal
@@ -2826,10 +2891,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const existing = allMonths.find(m => m.id === newMonthId);
       if (existing) {
-        closeNewMonthModal();
-        switchMonth(newMonthId);
-        showToast(`এই মাসটি (${existing.label}) ইতিমধ্যে রয়েছে, সেখানে সুইচ করা হয়েছে।`);
-        return;
+        if (confirm(`"${existing.label}" মাসের খাতা কি সম্পূর্ণ পরিষ্কার (০ থেকে) করে নতুনভাবে শুরু করতে চান? (সব হিসাব ফ্রেশ ০ হবে, শুধু মেম্বার ও ফিক্সড বিল বহাল থাকবে)`)) {
+          const freshState = createFreshMonthState(newMonthId, true);
+          localStorage.setItem(getStorageKeyForMonth(newMonthId), JSON.stringify(freshState));
+          if (typeof pushStateToFirebase === 'function') {
+            pushStateToFirebase(freshState, newMonthId);
+          }
+          closeNewMonthModal();
+          switchMonth(newMonthId);
+          showToast(`"${existing.label}" মাসের খাতা সম্পূর্ণ নতুন ও পরিষ্কারভাবে শুরু হয়েছে!`);
+          return;
+        } else {
+          closeNewMonthModal();
+          switchMonth(newMonthId);
+          showToast(`এই মাসটিতে সুইচ করা হয়েছে।`);
+          return;
+        }
       }
 
       const mIndex = monthNum - 1;
