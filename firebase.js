@@ -143,9 +143,9 @@ function listenToMonth(monthId, onRemoteChange) {
 function pushStateToFirebase(currentState, overrideMonthId) {
   if (!db || !isCloudConnected || isSyncingFromRemote) return;
 
-  const targetMonthId = overrideMonthId || (currentState && currentState.monthId) || activeMonthDocId || '2026-10';
+  const targetMonthId = overrideMonthId || (currentState && currentState.monthId) || (typeof currentMonthId !== 'undefined' ? currentMonthId : null) || activeMonthDocId || '2026-10';
   const docPath = getFirestoreDocPath(targetMonthId);
-  db.doc(docPath).set(currentState)
+  db.doc(docPath).set(currentState, { merge: true })
     .then(() => {
       updateSyncIndicator(true, 'লাইভ ক্লাউড সিঙ্কড');
     })
