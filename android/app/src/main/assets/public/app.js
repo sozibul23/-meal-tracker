@@ -321,30 +321,6 @@ state = loadState();
 function loadState(monthId = currentMonthId) {
   const key = getStorageKeyForMonth(monthId);
   try {
-    // If October 2026 and not yet synced to latest Google Sheet revision, force reset
-    if (monthId === '2026-10') {
-      const isSynced = localStorage.getItem(GSHEET_SYNC_KEY);
-      if (!isSynced) {
-        localStorage.setItem(GSHEET_SYNC_KEY, 'true');
-        localStorage.setItem(key, JSON.stringify(INITIAL_DATA));
-        return JSON.parse(JSON.stringify(INITIAL_DATA));
-      }
-    }
-
-    // Force purge November 2026 if it was contaminated with October data
-    if (monthId === '2026-11') {
-      const novPurgeKey = 'MESS_NOV_FORCE_PURGE_V4';
-      if (!localStorage.getItem(novPurgeKey)) {
-        localStorage.setItem(novPurgeKey, 'true');
-        const freshNov = createFreshMonthState('2026-11');
-        localStorage.setItem(key, JSON.stringify(freshNov));
-        if (typeof pushStateToFirebase === 'function') {
-          pushStateToFirebase(freshNov, '2026-11');
-        }
-        return freshNov;
-      }
-    }
-
     const raw = localStorage.getItem(key);
     if (raw) {
       let parsed = JSON.parse(raw);
@@ -2127,21 +2103,7 @@ function showToast(msg) {
 
 // Setup Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-  // Immediate auto-purge if November was contaminated with copied October data
-  try {
-    const novPurgeKey = 'MESS_NOV_FORCE_PURGE_V4';
-    if (!localStorage.getItem(novPurgeKey)) {
-      localStorage.setItem(novPurgeKey, 'true');
-      const freshNov = createFreshMonthState('2026-11');
-      localStorage.setItem('MESS_DATA_2026-11', JSON.stringify(freshNov));
-      if (typeof pushStateToFirebase === 'function') {
-        pushStateToFirebase(freshNov, '2026-11');
-      }
-      if (currentMonthId === '2026-11') {
-        state = freshNov;
-      }
-    }
-  } catch (e) {}
+  // Safe month init - no auto purge
   // Theme Toggle with dynamic icon & smooth UI
   const updateThemeUI = (theme) => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -2689,7 +2651,12 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('রিসেট করতে এডমিন লগইন প্রয়োজন');
       return;
     }
-    if (confirm('আপনি কি নিশ্চিত যে আসল গুগল শিটের ডাটায় ফিরিয়ে নিতে চান?')) {
+    const confirmInput = prompt('⚠️ সতর্কতা: ডাটা রিসেট করলে বর্তমান মাসের সকল মিল, বাজার ও হিসাব মুছে যাবে!\n\nআপনি যদি নিশ্চিত হন, তবে নিচে RESET লিখে কনফার্ম করুন:');
+    if (confirmInput !== 'RESET') {
+      showToast('রিসেট বাতিল করা হয়েছে');
+      return;
+    }
+    if (true) {
         if (currentMonthId === '2026-10') {
           state = JSON.parse(JSON.stringify(INITIAL_DATA));
         } else {
@@ -2773,11 +2740,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         remoteState = sanitizeMonthState(remoteState, currentMonthId);
 
-        if (currentMonthId === '2026-10' && remoteState.dataVersion !== INITIAL_DATA.dataVersion) {
-          console.log('Syncing fresh Google Sheet data to Firestore...');
-          pushStateToFirebase(state, '2026-10');
-          return;
-        }
+        // Cloud Firestore is source of truth - never auto-overwrite with stale initial data
 
         state = remoteState;
         ensureDepositHistory(state);
@@ -3145,7 +3108,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-20-v22';
+  const LATEST_BUILD = '2026-10-29-v23';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);

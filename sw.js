@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meal-tracker-v1.4.0';
+const CACHE_NAME = 'meal-tracker-v1.4.2';
 const ASSETS = [
   './',
   './index.html',
