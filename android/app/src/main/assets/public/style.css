@@ -2391,3 +2391,24 @@ body, .header, .card, .stat-card, .member-card, .floating-dock, .modal-box, .qui
 [data-theme="light"] #whatsAppTextPreview {
   color: #0f172a !important;
 }
+
+
+/* Date Picker Input Styles */
+input[type="date"].input {
+  cursor: pointer;
+  color-scheme: dark;
+}
+
+[data-theme="light"] input[type="date"].input {
+  color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}

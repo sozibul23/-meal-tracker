@@ -366,6 +366,100 @@ function saveStateLocalOnly() {
 }
 
 // Helpers
+
+// Date Helpers for Interactive Calendar Picker
+function getTodayIsoString(monthId = currentMonthId) {
+  const now = new Date();
+  const todayY = now.getFullYear();
+  const todayM = now.getMonth() + 1;
+  const todayD = now.getDate();
+
+  if (monthId && monthId.includes('-')) {
+    const parts = monthId.split('-');
+    const mYear = parseInt(parts[0], 10);
+    const mMonth = parseInt(parts[1], 10);
+    if (mYear === todayY && mMonth === todayM) {
+      return `${todayY}-${String(todayM).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`;
+    } else {
+      return `${mYear}-${String(mMonth).padStart(2, '0')}-01`;
+    }
+  }
+
+  return `${todayY}-${String(todayM).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`;
+}
+
+function formatDateForInput(dateStr, monthId = currentMonthId) {
+  if (!dateStr) return getTodayIsoString(monthId);
+  const trimmed = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const dayMatch = trimmed.match(/\b([1-9]|[12]\d|3[01])\b/);
+  const day = dayMatch ? parseInt(dayMatch[1], 10) : new Date().getDate();
+
+  let year = 2026;
+  let month = 11;
+  const mId = monthId || (typeof state !== 'undefined' && state && state.monthId) || '2026-11';
+  if (mId.includes('-')) {
+    const parts = mId.split('-');
+    year = parseInt(parts[0], 10) || 2026;
+    month = parseInt(parts[1], 10) || 11;
+  }
+
+  const yearMatch = trimmed.match(/\b(20\d{2})\b/);
+  if (yearMatch) {
+    year = parseInt(yearMatch[1], 10);
+  }
+
+  MONTH_NAMES_EN.forEach((mName, idx) => {
+    if (trimmed.toLowerCase().includes(mName.toLowerCase())) {
+      month = idx + 1;
+    }
+  });
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function formatDateFromInput(isoVal) {
+  if (!isoVal) {
+    const now = new Date();
+    const mName = (typeof state !== 'undefined' && state && state.month ? state.month : 'November 2026').split(' ')[0];
+    return `${now.getDate()} ${mName}`;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoVal)) {
+    return isoVal;
+  }
+  const parts = isoVal.split('-');
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+  const monthName = MONTH_NAMES_EN[month - 1] || 'November';
+  return `${day} ${monthName}`;
+}
+
+function formatDateFromInputWithYear(isoVal) {
+  if (!isoVal) {
+    const now = new Date();
+    return `${now.getDate()} ${(typeof state !== 'undefined' && state && state.month ? state.month : 'November 2026')}`;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoVal)) {
+    return isoVal;
+  }
+  const parts = isoVal.split('-');
+  const year = parts[0];
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+  const monthName = MONTH_NAMES_EN[month - 1] || 'November';
+  return `${day} ${monthName} ${year}`;
+}
+
+function extractDayFromDate(dateStr) {
+  if (!dateStr) return 0;
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    return parseInt(dateStr.split('-')[2], 10) || 0;
+  }
+  return parseInt(dateStr, 10) || 0;
+}
+
 function formatBDT(amount,
       category, showPlus = false) {
   const num = Number(amount) || 0;
@@ -685,8 +779,8 @@ function renderDashboard(metrics) {
 
     const allBazarList = [...foodEntries, ...sharedEntries];
     allBazarList.sort((a, b) => {
-      const dayA = parseInt(a.date, 10) || 0;
-      const dayB = parseInt(b.date, 10) || 0;
+      const dayA = extractDayFromDate(a.date);
+      const dayB = extractDayFromDate(b.date);
       if (dayA !== dayB) return dayA - dayB;
       return String(a.rawId).localeCompare(String(b.rawId));
     });
@@ -892,8 +986,8 @@ function renderBazarTable() {
 
   const allEntries = [...foodEntries, ...sharedEntries];
   allEntries.sort((a, b) => {
-    const dayA = parseInt(a.date, 10) || 0;
-    const dayB = parseInt(b.date, 10) || 0;
+    const dayA = extractDayFromDate(a.date);
+      const dayB = extractDayFromDate(b.date);
     if (dayA !== dayB) return dayA - dayB;
     return String(a.rawId).localeCompare(String(b.rawId));
   });
@@ -990,7 +1084,7 @@ window.openEditBazarModal = function(id, isShared = false) {
   document.getElementById('editBazarId').value = item.id;
   const shopperSelect = document.getElementById('editBazarShopperSelect');
   shopperSelect.innerHTML = state.members.map(m => `<option value="${m}" ${m === item.shopper ? 'selected' : ''}>${m}</option>`).join('');
-  document.getElementById('editBazarDateInput').value = item.date || '';
+  document.getElementById('editBazarDateInput').value = formatDateForInput(item.date, currentMonthId);
   document.getElementById('editBazarItemInput').value = item.item || '';
   document.getElementById('editBazarAmountInput').value = item.amount || '';
   const catSelect = document.getElementById('editBazarCategorySelect');
@@ -1017,7 +1111,7 @@ window.openEditDepositModal = function(id) {
   const memberSelect = document.getElementById('editDepositMemberSelect');
   memberSelect.innerHTML = state.members.map(m => `<option value="${m}" ${m === entry.member ? 'selected' : ''}>${m}</option>`).join('');
   document.getElementById('editDepositAmountInput').value = entry.amount || '';
-  document.getElementById('editDepositDateInput').value = entry.date || '';
+  document.getElementById('editDepositDateInput').value = formatDateForInput(entry.date, currentMonthId);
   document.getElementById('editDepositNoteInput').value = entry.note || '';
 
   const modal = document.getElementById('editDepositModal');
@@ -2257,12 +2351,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (shopperSelect) {
       shopperSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
     }
-    const today = new Date();
-    const day = today.getDate();
-    const monthPart = (state.month || 'October 2026').split(' ')[0];
     const dateInput = document.getElementById('modalBazarDateInput');
     if (dateInput) {
-      dateInput.value = `${day} ${monthPart}`;
+      dateInput.value = getTodayIsoString(currentMonthId);
     }
     resetBazarItemRows();
     bazarModal.classList.add('open');
@@ -2277,11 +2368,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
   if (setTodayBtn) {
     setTodayBtn.addEventListener('click', () => {
-      const today = new Date();
-      const day = today.getDate();
-      const monthPart = (state.month || 'October 2026').split(' ')[0];
       const dateInput = document.getElementById('modalBazarDateInput');
-      if (dateInput) dateInput.value = `${day} ${monthPart}`;
+      if (dateInput) dateInput.value = getTodayIsoString(currentMonthId);
     });
   }
 
@@ -2336,7 +2424,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!isAdmin) return;
       const id = document.getElementById('editBazarId').value;
       const shopper = document.getElementById('editBazarShopperSelect').value;
-      const date = document.getElementById('editBazarDateInput').value.trim();
+      const dateVal = document.getElementById('editBazarDateInput').value.trim();
+      const date = formatDateFromInput(dateVal);
       const item = document.getElementById('editBazarItemInput').value.trim();
       const amount = Number(document.getElementById('editBazarAmountInput').value);
       const catEl = document.getElementById('editBazarCategorySelect');
@@ -2382,7 +2471,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const catEl = document.getElementById('modalBazarCategorySelect');
     const category = catEl ? catEl.value : 'food';
     const dateInput = document.getElementById('modalBazarDateInput');
-    const date = dateInput ? dateInput.value.trim() : `${new Date().getDate()} October`;
+    const dateIso = dateInput ? dateInput.value.trim() : '';
+    const date = formatDateFromInput(dateIso);
 
     const items = [];
     document.querySelectorAll('#bazarItemsRowsContainer .bazar-item-row').forEach(row => {
@@ -2433,6 +2523,63 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   });
 
+  
+  // Edit Deposit Modal setup
+  const editDepositModal = document.getElementById('editDepositModal');
+  const closeEditDepositModal = () => {
+    if (editDepositModal) editDepositModal.classList.remove('open');
+  };
+  const closeEditDepBtn = document.getElementById('closeEditDepositModalBtn');
+  const cancelEditDepBtn = document.getElementById('cancelEditDepositModalBtn');
+  if (closeEditDepBtn) closeEditDepBtn.addEventListener('click', closeEditDepositModal);
+  if (cancelEditDepBtn) cancelEditDepBtn.addEventListener('click', closeEditDepositModal);
+
+  const editDepositForm = document.getElementById('editDepositForm');
+  if (editDepositForm) {
+    editDepositForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!isAdmin) return;
+      const id = document.getElementById('editDepositId').value;
+      const member = document.getElementById('editDepositMemberSelect').value;
+      const amount = Number(document.getElementById('editDepositAmountInput').value);
+      const dateIso = document.getElementById('editDepositDateInput').value.trim();
+      const note = document.getElementById('editDepositNoteInput').value.trim();
+
+      if (!member || isNaN(amount) || amount <= 0) {
+        showToast('সঠিক জমার পরিমাণ দিন');
+        return;
+      }
+
+      ensureDepositHistory(state);
+      const idx = state.depositHistory.findIndex(d => String(d.id) === String(id));
+      if (idx !== -1) {
+        state.depositHistory[idx].member = member;
+        state.depositHistory[idx].amount = amount;
+        state.depositHistory[idx].date = formatDateFromInputWithYear(dateIso);
+        state.depositHistory[idx].note = note;
+        recalculateDepositsFromHistory();
+        saveState();
+        renderAll();
+        closeEditDepositModal();
+        showToast('জমা এন্ট্রি সফলভাবে আপডেট করা হয়েছে!');
+      }
+    });
+  }
+
+  // Native Calendar Picker trigger on full input click
+  ['modalBazarDateInput', 'editBazarDateInput', 'depositDateInput', 'editDepositDateInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', () => {
+        try {
+          if (typeof el.showPicker === 'function') {
+            el.showPicker();
+          }
+        } catch (err) {}
+      });
+    }
+  });
+
   // Deposit Modal
   const depositModal = document.getElementById('depositModal');
   const openDepositModal = (prefillMember = '') => {
@@ -2457,6 +2604,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('closeDepositModalBtn').addEventListener('click', closeDepositModal);
   document.getElementById('cancelDepositModalBtn').addEventListener('click', closeDepositModal);
+  const setTodayDepBtn = document.getElementById('setTodayDepositDateBtn');
+  if (setTodayDepBtn) {
+    setTodayDepBtn.addEventListener('click', () => {
+      const dateInput = document.getElementById('depositDateInput');
+      if (dateInput) dateInput.value = getTodayIsoString(currentMonthId);
+    });
+  }
+
 
   document.getElementById('depositForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2466,7 +2621,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateInput = document.getElementById('depositDateInput');
     const noteInput = document.getElementById('depositNoteInput');
 
-    const date = dateInput ? dateInput.value.trim() : '';
+    const dateIso = dateInput ? dateInput.value.trim() : '';
+    const date = formatDateFromInputWithYear(dateIso);
     const note = noteInput ? noteInput.value.trim() : '';
 
     if (!member || isNaN(amount) || amount <= 0) {
@@ -3108,7 +3264,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-10-29-v23';
+  const LATEST_BUILD = '2026-11-02-v24';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);

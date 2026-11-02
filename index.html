@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.4.0">
+  <link rel="stylesheet" href="style.css?v=1.4.3">
 </head>
 <body>
 
@@ -701,7 +701,7 @@
           </div>
           <div class="form-field">
             <label for="editBazarDateInput">তারিখ *</label>
-            <input type="text" id="editBazarDateInput" class="input" placeholder="যেমন: 19 October" required>
+            <input type="date" id="editBazarDateInput" class="input" required>
           </div>
           <div class="form-field">
             <label for="editBazarCategorySelect">বাজারের ধরণ (ক্যাটাগরি) *</label>
@@ -748,7 +748,7 @@
             </div>
             <div class="form-field">
               <label for="editDepositDateInput">জমা দেওয়ার তারিখ *</label>
-              <input type="text" id="editDepositDateInput" class="input" placeholder="যেমন: ১৯ অক্টোবর" required>
+              <input type="date" id="editDepositDateInput" class="input" required>
             </div>
           </div>
           <div class="form-field">
@@ -790,7 +790,7 @@
           <div class="form-field" style="margin-bottom: 14px;">
             <label for="modalBazarDateInput">বাজারের তারিখ *</label>
             <div style="display: flex; gap: 8px;">
-              <input type="text" id="modalBazarDateInput" class="input" placeholder="যেমন: 21 October" required style="flex: 1;">
+              <input type="date" id="modalBazarDateInput" class="input" required style="flex: 1;">
               <button type="button" class="btn btn-outline btn-sm" id="setTodayBazarDateBtn" style="white-space: nowrap; font-size: 0.78rem;">📅 আজকের তারিখ</button>
             </div>
           </div>
@@ -842,7 +842,10 @@
             </div>
             <div class="form-field">
               <label for="depositDateInput">জমা দেওয়ার তারিখ *</label>
-              <input type="text" id="depositDateInput" class="input" placeholder="উদা: ২০ অক্টোবর ২০২৬" required>
+              <div style="display: flex; gap: 8px;">
+                <input type="date" id="depositDateInput" class="input" required style="flex: 1;">
+                <button type="button" class="btn btn-outline btn-sm" id="setTodayDepositDateBtn" style="white-space: nowrap; font-size: 0.78rem;">📅 আজকের তারিখ</button>
+              </div>
             </div>
           </div>
           <div class="form-field">
@@ -997,7 +1000,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js?v=1.1.2"></script>
-  <script src="app.js?v=1.4.2"></script>
+  <script src="app.js?v=1.4.3"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
