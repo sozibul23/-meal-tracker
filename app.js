@@ -2364,39 +2364,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('openAddBazarBtn').addEventListener('click', openBazarModal);
   document.getElementById('closeBazarModalBtn').addEventListener('click', closeBazarModal);
   document.getElementById('cancelBazarModalBtn').addEventListener('click', closeBazarModal);
-
-  
-  const openCalBazarBtn = document.getElementById('openCalendarBazarBtn');
-  if (openCalBazarBtn) {
-    openCalBazarBtn.addEventListener('click', () => {
-      const inp = document.getElementById('modalBazarDateInput');
-      if (inp) {
-        try {
-          if (typeof inp.showPicker === 'function') inp.showPicker();
-          else inp.focus();
-        } catch (e) {
-          inp.focus();
-        }
-      }
-    });
-  }
-
-  const openCalDepBtn = document.getElementById('openCalendarDepositBtn');
-  if (openCalDepBtn) {
-    openCalDepBtn.addEventListener('click', () => {
-      const inp = document.getElementById('depositDateInput');
-      if (inp) {
-        try {
-          if (typeof inp.showPicker === 'function') inp.showPicker();
-          else inp.focus();
-        } catch (e) {
-          inp.focus();
-        }
-      }
-    });
-  }
-
-  const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
+const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
   if (setTodayBtn) {
     setTodayBtn.addEventListener('click', () => {
       const dateInput = document.getElementById('modalBazarDateInput');
@@ -3295,7 +3263,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-02-v25';
+  const LATEST_BUILD = '2026-11-02-v26';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
