@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meal-tracker-v1.4.3';
+const CACHE_NAME = 'meal-tracker-v1.4.4';
 const ASSETS = [
   './',
   './index.html',
@@ -28,11 +28,28 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+// Network-First strategy: Always fetch newest updates when online; fallback to cache when offline
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+
+  const url = new URL(e.request.url);
+  if (!url.origin.includes(self.location.origin) && !url.origin.includes('github.io')) {
+    return;
+  }
+
   e.respondWith(
-    caches.match(e.request).then((res) => {
-      return res || fetch(e.request).catch(() => caches.match('./index.html'));
-    })
+    fetch(e.request)
+      .then((networkRes) => {
+        if (networkRes && networkRes.status === 200) {
+          const resClone = networkRes.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
+        }
+        return networkRes;
+      })
+      .catch(() => {
+        return caches.match(e.request).then((res) => {
+          return res || caches.match('./index.html');
+        });
+      })
   );
 });

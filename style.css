@@ -2395,6 +2395,7 @@ body, .header, .card, .stat-card, .member-card, .floating-dock, .modal-box, .qui
 
 /* Date Picker Input Styles */
 input[type="date"].input {
+  min-height: 42px;
   cursor: pointer;
   color-scheme: dark;
 }
@@ -2405,10 +2406,12 @@ input[type="date"].input {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.85;
-  transition: opacity 0.2s;
+  opacity: 0.9;
+  padding: 4px;
+  border-radius: 4px;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
 }
