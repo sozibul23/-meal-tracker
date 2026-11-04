@@ -867,6 +867,10 @@ function renderMealsTable() {
   const headRow = document.getElementById('mealsHeadRow');
   const tbody = document.getElementById('mealsBody');
   const tfoot = document.getElementById('mealsFoot');
+  if (!headRow || !tbody || !tfoot) return;
+  const wrap = document.querySelector('.table-wrap.meal-scroll');
+  const prevScrollLeft = wrap ? wrap.scrollLeft : 0;
+  const prevScrollTop = wrap ? wrap.scrollTop : 0;
 
   // Dynamic headers for members
   headRow.innerHTML = `
@@ -933,6 +937,10 @@ function renderMealsTable() {
       <th class="text-center mono" style="font-weight: 800; color: var(--accent);">${grandTotal}</th>
     </tr>
   `;
+  if (wrap) {
+    wrap.scrollLeft = prevScrollLeft;
+    wrap.scrollTop = prevScrollTop;
+  }
 }
 
 window.updateMeal = function(day, member, delta) {
@@ -944,6 +952,7 @@ window.updateMeal = function(day, member, delta) {
   const current = Number(state.meals[day][member]) || 0;
   state.meals[day][member] = Math.max(0, current + delta);
   saveState();
+  renderAll();
 };
 
 // Render Bazar Table
@@ -1445,6 +1454,7 @@ window.toggleBillStatus = function(id) {
   if (bill) {
     bill.status = bill.status === 'Paid' ? 'Pending' : 'Paid';
     saveState();
+    renderAll();
     showToast(`স্ট্যাটাস পরিবর্তন হয়েছে: ${bill.status === 'Paid' ? 'পরিশোধিত' : 'বকেয়া'}`);
   }
 };
@@ -1832,6 +1842,7 @@ function addMember(name) {
   }
 
   saveState();
+  renderAll();
   showToast(`সদস্য "${cleanName}" যুক্ত করা হয়েছে!`);
 }
 
@@ -1861,6 +1872,7 @@ window.deleteMember = function(name) {
     }
 
     saveState();
+    renderAll();
     showToast(`সদস্য "${name}" সফলভাবে মুছে ফেলা হয়েছে!`);
   }
 };
@@ -2772,13 +2784,15 @@ const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
     if (!isAdmin) return;
     const day = prompt('কোন তারিখে সবার ১টি করে মিল যোগ করবেন? (১ থেকে ৩১ এর মধ্যে লিখুন):', new Date().getDate());
     const dayNum = parseInt(day, 10);
-    if (dayNum >= 1 && dayNum <= 31) {
+    const maxDays = getDaysInMonthForState(state);
+    if (dayNum >= 1 && dayNum <= maxDays) {
       if (!state.meals[dayNum]) state.meals[dayNum] = {};
       state.members.forEach(m => {
         state.meals[dayNum][m] = (state.meals[dayNum][m] || 0) + 1;
       });
       saveState();
-      showToast(`${dayNum} অক্টোবরে সবার ১টি করে মিল যোগ হয়েছে!`);
+      renderAll();
+      showToast(`${dayNum} তারিখে সবার ১টি করে মিল যোগ হয়েছে!`);
     }
   });
 
@@ -3263,7 +3277,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-02-v26';
+  const LATEST_BUILD = '2026-11-04-v27';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
