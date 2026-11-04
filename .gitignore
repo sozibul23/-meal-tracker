@@ -2,3 +2,5 @@ node_modules/
 .gradle/
 build/
 local.properties
+playwright-report/
+test-results/
