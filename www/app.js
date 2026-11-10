@@ -54,92 +54,500 @@ function fallbackCopy(text, successMessage) {
  */
 
 const INITIAL_DATA = {
-  dataVersion: '2026-10-21_GSHEET_SYNC_V3',
-  depositHistory: [
-    { id: 'init-1', member: 'Sadhin', amount: 1397, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
-    { id: 'init-2', member: 'Tanzid', amount: 1599, date: '1 October 2026', note: 'মেস ফান্ড জমা' },
-    { id: 'init-3', member: 'Akhirul', amount: 1556, date: '1 October 2026', note: 'মেস ফান্ড জমা' }
+  "month": "October 2026",
+  "monthBn": "অক্টোবর ২০২৬",
+  "monthId": "2026-10",
+  "daysInMonth": 31,
+  "members": [
+    "Sadhin",
+    "Tanzid",
+    "Akhirul",
+    "Imam"
   ],
-  month: 'October 2026',
-  monthBn: 'অক্টোবর ২০২৬',
-  members: ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'],
-  adminPin: '1357',
-  deposits: {
-    Sadhin: 1397,
-    Tanzid: 1599,
-    Akhirul: 1556,
-    Imam: 0
+  "adminPin": "1357",
+  "deposits": {
+    "Sadhin": 2767,
+    "Tanzid": 2039,
+    "Akhirul": 2464,
+    "Imam": 0
   },
-  bazar: [
-    { id: 1, shopper: 'Tanzid', item: 'Murgi + vendi', amount: 290, date: '1 October' },
-    { id: 2, shopper: 'Tanzid', item: 'Tel, alu, peyaj, morich, polithin', amount: 205, date: '2 October' },
-    { id: 3, shopper: 'Sadhin', item: 'Dim', amount: 52, date: '3 October' },
-    { id: 4, shopper: 'Tanzid', item: 'Chal 330, morich 10, vendi 20', amount: 360, date: '4 October' },
-    { id: 5, shopper: 'Sadhin', item: 'Dim 50, alu, peyaj, ada, rosun 100', amount: 150, date: '5 October' },
-    { id: 6, shopper: 'Tanzid', item: 'Murgi 330', amount: 330, date: '6 October' },
-    { id: 7, shopper: 'Tanzid', item: 'Tel 204', amount: 204, date: '7 October' },
-    { id: 8, shopper: 'Sadhin', item: 'Gorur mangso 400', amount: 400, date: '8 October' },
-    { id: 9, shopper: 'Tanzid', item: 'Mosla 100', amount: 100, date: '9 October' },
-    { id: 10, shopper: 'Akhirul', item: 'Mach 750', amount: 750, date: '10 October' },
-    { id: 11, shopper: 'Sadhin', item: 'Sobji 10', amount: 10, date: '11 October' },
-    { id: 12, shopper: 'Tanzid', item: 'Potol 20', amount: 20, date: '12 October' },
-    { id: 13, shopper: 'Sadhin', item: 'Peyaj 50 + morich 10', amount: 60, date: '13 October' },
-    { id: 14, shopper: 'Tanzid', item: 'Kumra 40', amount: 40, date: '14 October' },
-    { id: 15, shopper: 'Sadhin', item: 'Murgi 350, sak 15', amount: 365, date: '15 October' },
-    { id: 16, shopper: 'Akhirul', item: 'Chal 341, mosla 30, vim 20', amount: 391, date: '16 October' },
-    { id: 17, shopper: 'Akhirul', item: 'Polar chal 80, mosla 60', amount: 140, date: '17 October' },
-    { id: 18, shopper: 'Tanzid', item: 'Dim 50', amount: 50, date: '18 October' },
-    { id: 19, shopper: 'Sadhin', item: 'Murgi 340, dheros 20', amount: 360, date: '19 October' },
-    { id: 20, shopper: 'Akhirul', item: 'Tel, sobji, lighter, dim', amount: 275, date: '20 October' }
+  "depositHistory": [
+    {
+      "id": "dep-1",
+      "member": "Sadhin",
+      "amount": 2767,
+      "date": "1 October 2026",
+      "note": "মেস ফান্ড জমা (Google Sheet)"
+    },
+    {
+      "id": "dep-2",
+      "member": "Tanzid",
+      "amount": 2039,
+      "date": "1 October 2026",
+      "note": "মেস ফান্ড জমা (Google Sheet)"
+    },
+    {
+      "id": "dep-3",
+      "member": "Akhirul",
+      "amount": 2464,
+      "date": "1 October 2026",
+      "note": "মেস ফান্ড জমা (Google Sheet)"
+    }
   ],
-  meals: {
-    1: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
-    2: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
-    3: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    4: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
-    5: { Sadhin: 2, Tanzid: 2, Akhirul: 2, Imam: 0 },
-    6: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
-    7: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    8: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
-    9: { Sadhin: 1, Tanzid: 2, Akhirul: 1, Imam: 0 },
-    10: { Sadhin: 2, Tanzid: 3, Akhirul: 2, Imam: 0 },
-    11: { Sadhin: 1, Tanzid: 1, Akhirul: 1, Imam: 0 },
-    12: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    13: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    14: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    15: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    16: { Sadhin: 2, Tanzid: 2, Akhirul: 2, Imam: 0 },
-    17: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    18: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    19: { Sadhin: 2, Tanzid: 1, Akhirul: 2, Imam: 0 },
-    20: { Sadhin: 2, Tanzid: 0, Akhirul: 2, Imam: 0 },
-    21: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    22: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    23: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    24: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    25: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    26: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    27: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    28: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    29: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    30: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 },
-    31: { Sadhin: 0, Tanzid: 0, Akhirul: 0, Imam: 0 }
+  "bazar": [
+    {
+      "id": 1,
+      "shopper": "Tanzid",
+      "item": "Murgi +vendi",
+      "amount": 290,
+      "date": "1 October"
+    },
+    {
+      "id": 2,
+      "shopper": "Tanzid",
+      "item": "tel,alu,peyaj,morich,polithin",
+      "amount": 205,
+      "date": "2 October"
+    },
+    {
+      "id": 3,
+      "shopper": "Sadhin",
+      "item": "dim",
+      "amount": 52,
+      "date": "3 October"
+    },
+    {
+      "id": 4,
+      "shopper": "Tanzid",
+      "item": "chal 330, morich 10, vendi 20",
+      "amount": 360,
+      "date": "4 October"
+    },
+    {
+      "id": 5,
+      "shopper": "Sadhin",
+      "item": "dim -50, alu,peyaj,ada ,rosun-100",
+      "amount": 150,
+      "date": "5 October"
+    },
+    {
+      "id": 6,
+      "shopper": "Tanzid",
+      "item": "Murgi -330",
+      "amount": 330,
+      "date": "6 October"
+    },
+    {
+      "id": 7,
+      "shopper": "Tanzid",
+      "item": "Tel - 204",
+      "amount": 204,
+      "date": "7 October"
+    },
+    {
+      "id": 8,
+      "shopper": "Sadhin",
+      "item": "gorur mangso-400",
+      "amount": 400,
+      "date": "8 October"
+    },
+    {
+      "id": 9,
+      "shopper": "Tanzid",
+      "item": "Mosla - 100",
+      "amount": 100,
+      "date": "9 October"
+    },
+    {
+      "id": 10,
+      "shopper": "Akhirul",
+      "item": "mach - 750",
+      "amount": 750,
+      "date": "10 October"
+    },
+    {
+      "id": 11,
+      "shopper": "Sadhin",
+      "item": "sobji- 10",
+      "amount": 10,
+      "date": "11 October"
+    },
+    {
+      "id": 12,
+      "shopper": "Tanzid",
+      "item": "Potol -20",
+      "amount": 20,
+      "date": "12 October"
+    },
+    {
+      "id": 13,
+      "shopper": "Sadhin",
+      "item": "peyaj -50 +morich 10",
+      "amount": 60,
+      "date": "13 October"
+    },
+    {
+      "id": 14,
+      "shopper": "Tanzid",
+      "item": "kumra - 40",
+      "amount": 40,
+      "date": "14 October"
+    },
+    {
+      "id": 15,
+      "shopper": "Sadhin",
+      "item": "Murgi - 350, sak 15",
+      "amount": 365,
+      "date": "15 October"
+    },
+    {
+      "id": 16,
+      "shopper": "Akhirul",
+      "item": "chal 341, mosla 30, vim 20",
+      "amount": 391,
+      "date": "16 October"
+    },
+    {
+      "id": 17,
+      "shopper": "Akhirul",
+      "item": "Polar chal 80, mosla -60",
+      "amount": 140,
+      "date": "17 October"
+    },
+    {
+      "id": 18,
+      "shopper": "Tanzid",
+      "item": "dim -50",
+      "amount": 50,
+      "date": "18 October"
+    },
+    {
+      "id": 19,
+      "shopper": "Sadhin",
+      "item": "murgi -340, dheros -20",
+      "amount": 360,
+      "date": "19 October"
+    },
+    {
+      "id": 20,
+      "shopper": "Akhirul",
+      "item": "tel, sobji, lighter,dim",
+      "amount": 275,
+      "date": "20 October"
+    },
+    {
+      "id": 21,
+      "shopper": "Sadhin",
+      "item": "chal 5kg -335,dal 1kg 140",
+      "amount": 475,
+      "date": "21 October"
+    },
+    {
+      "id": 22,
+      "shopper": "Akhirul",
+      "item": "mach 150,sak,morich,mosla",
+      "amount": 333,
+      "date": "23 October"
+    },
+    {
+      "id": 23,
+      "shopper": "Sadhin",
+      "item": "mach 600",
+      "amount": 600,
+      "date": "24 October"
+    },
+    {
+      "id": 24,
+      "shopper": "Akhirul",
+      "item": "Chotomach",
+      "amount": 60,
+      "date": "25 October"
+    },
+    {
+      "id": 25,
+      "shopper": "Sadhin",
+      "item": "peaj + mosla",
+      "amount": 140,
+      "date": "26 October"
+    },
+    {
+      "id": 26,
+      "shopper": "Akhirul",
+      "item": "murgi,moric ,dal",
+      "amount": 470,
+      "date": "27 October"
+    },
+    {
+      "id": 27,
+      "shopper": "Sadhin",
+      "item": "dal 50, tel 105",
+      "amount": 155,
+      "date": "29 October"
+    },
+    {
+      "id": 28,
+      "shopper": "Akhirul",
+      "item": "ada , begun",
+      "amount": 45,
+      "date": "30 October"
+    },
+    {
+      "id": 29,
+      "shopper": "Tanzid",
+      "item": "chal, mosla ,piaj",
+      "amount": 440,
+      "date": "31 October"
+    }
+  ],
+  "meals": {
+    "1": {
+      "Sadhin": 1,
+      "Tanzid": 1,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "2": {
+      "Sadhin": 1,
+      "Tanzid": 1,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "3": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "4": {
+      "Sadhin": 1,
+      "Tanzid": 1,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "5": {
+      "Sadhin": 2,
+      "Tanzid": 2,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "6": {
+      "Sadhin": 1,
+      "Tanzid": 1,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "7": {
+      "Sadhin": 0,
+      "Tanzid": 0,
+      "Akhirul": 0,
+      "Imam": 0
+    },
+    "8": {
+      "Sadhin": 1,
+      "Tanzid": 1,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "9": {
+      "Sadhin": 1,
+      "Tanzid": 2,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "10": {
+      "Sadhin": 2,
+      "Tanzid": 3,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "11": {
+      "Sadhin": 1,
+      "Tanzid": 1,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "12": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "13": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "14": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "15": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "16": {
+      "Sadhin": 2,
+      "Tanzid": 2,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "17": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "18": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "19": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "20": {
+      "Sadhin": 2,
+      "Tanzid": 0,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "21": {
+      "Sadhin": 2,
+      "Tanzid": 0,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "22": {
+      "Sadhin": 2,
+      "Tanzid": 0,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "23": {
+      "Sadhin": 1,
+      "Tanzid": 0,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "24": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "25": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "26": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "27": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "28": {
+      "Sadhin": 1,
+      "Tanzid": 0,
+      "Akhirul": 1,
+      "Imam": 0
+    },
+    "29": {
+      "Sadhin": 2,
+      "Tanzid": 0,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "30": {
+      "Sadhin": 2,
+      "Tanzid": 2,
+      "Akhirul": 2,
+      "Imam": 0
+    },
+    "31": {
+      "Sadhin": 2,
+      "Tanzid": 1,
+      "Akhirul": 2,
+      "Imam": 0
+    }
   },
-  fixedBills: [
-    { id: 1, title: 'House Rent (বাসা ভাড়া)', amount: 16000, splitCount: 4, status: 'Paid', note: '৪ জনের সমান ভাগ' },
-    { id: 2, title: 'Wifi Bill (ইন্টারনেট)', amount: 690, splitCount: 4, status: 'Paid', note: '৪ জনের সমান ভাগ' },
-    { id: 3, title: 'Bua Bill (খালা বিল)', amount: 700, splitCount: 3, status: 'Paid', note: '৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)' }
+  "fixedBills": [
+    {
+      "id": 1,
+      "title": "House Rent (বাসা ভাড়া)",
+      "amount": 16000,
+      "splitCount": 4,
+      "status": "Paid",
+      "note": "৪ জনের সমান ভাগ"
+    },
+    {
+      "id": 2,
+      "title": "Wifi Bill (ইন্টারনেট)",
+      "amount": 690,
+      "splitCount": 4,
+      "status": "Paid",
+      "note": "৪ জনের সমান ভাগ"
+    },
+    {
+      "id": 3,
+      "title": "Bua Bill (খালা বিল)",
+      "amount": 700,
+      "splitCount": 3,
+      "status": "Paid",
+      "note": "৩ জনের ভাগ (Sadhin, Tanzid, Akhirul)"
+    }
   ],
-  sharedItems: [
-    { id: 1, name: 'Harpic + Handwash', price: 270, buyer: 'Sadhin', date: '27 October' },
-    { id: 2, name: 'Tul (টুল)', price: 350, buyer: 'Tanzid', date: '28 October' },
-    { id: 3, name: 'Rice case', price: 100, buyer: 'Sadhin', date: '29 October' }
+  "sharedItems": [
+    {
+      "id": 1,
+      "name": "Harpic + Handwash",
+      "price": 270,
+      "buyer": "Sadhin",
+      "date": "27 October"
+    },
+    {
+      "id": 2,
+      "name": "Tul (টুল)",
+      "price": 350,
+      "buyer": "Tanzid",
+      "date": "28 October"
+    },
+    {
+      "id": 3,
+      "name": "Rice case",
+      "price": 100,
+      "buyer": "Sadhin",
+      "date": "29 October"
+    },
+    {
+      "id": 4,
+      "name": "Ada, Begun etc.",
+      "price": 30,
+      "buyer": "Akhirul",
+      "date": "30 October"
+    }
   ],
-  memberBillStatus: {
-    Sadhin: 'Paid',
-    Tanzid: 'Paid',
-    Akhirul: 'Paid',
-    Imam: 'Paid'
+  "memberBillStatus": {
+    "Sadhin": "Paid",
+    "Tanzid": "Paid",
+    "Akhirul": "Paid",
+    "Imam": "Paid"
   }
 };
 
@@ -3676,4 +4084,117 @@ ${memberLines.join('\n')}
 (অনুগ্রহ করে সবাই যথাসময়ে বিল পরিশোধ করুন)`;
 
   copyTextToClipboard(text, '📋 সম্পূর্ণ মেসের বিল নোটিশ কপি হয়েছে!');
+};
+
+
+// ==========================================
+// Google Sheet Live Auto-Sync Engine
+// ==========================================
+const GSHEET_SPREADSHEET_ID = '1rlkL3wpu6SiLj9OCN5p-dG_uvZh1LlQiuPJYYatGlf8';
+
+window.syncFromGoogleSheetGlobal = async function(silent = false) {
+  try {
+    if (!silent) showToast('🔄 গুগল শিট থেকে সর্বশেষ ডেটা লোড হচ্ছে...');
+    
+    // Determine sheet name based on active month
+    let sheetName = 'October';
+    if (currentMonthId === '2026-11') sheetName = 'November';
+    else if (currentMonthId === '2026-09') sheetName = 'September';
+
+    const url = `https://docs.google.com/spreadsheets/d/${GSHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Sheet network response failed');
+    const csv = await res.text();
+
+    const lines = csv.split('\n').filter(l => l.trim().length > 0);
+    if (lines.length < 5) return;
+
+    function parseCsvRow(line) {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (c === ',' && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += c;
+        }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+
+    const rows = lines.map(parseCsvRow);
+    const firstRowStr = rows[0].join(' ').toLowerCase();
+
+    // Verify it's a meal sheet tab (has 'bazar' or 'meal' or 'sadhin')
+    if (!firstRowStr.includes('meal') && !firstRowStr.includes('sadhin') && !firstRowStr.includes('bazar')) {
+      if (!silent) showToast('শিটে এই মাসের ডেটা পাওয়া যায়নি');
+      return;
+    }
+
+    // Parse deposits (Col 10 = Member, Col 12 = Amount)
+    const members = ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
+    const newDeposits = { ...state.deposits };
+    const newMeals = { ...state.meals };
+    const newBazar = [];
+    let bazarIdCounter = 1;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const dayNum = parseInt(row[0], 10);
+      const itemDesc = (row[1] || '').trim();
+      const amount = parseFloat(row[2]) || 0;
+
+      // Bazar
+      if (amount > 0 && itemDesc && !itemDesc.toLowerCase().includes('total')) {
+        let shopper = 'Sadhin';
+        if (itemDesc.toLowerCase().includes('tanzid')) shopper = 'Tanzid';
+        else if (itemDesc.toLowerCase().includes('akhirul')) shopper = 'Akhirul';
+        else if (itemDesc.toLowerCase().includes('imam')) shopper = 'Imam';
+
+        newBazar.push({
+          id: bazarIdCounter++,
+          shopper,
+          item: itemDesc,
+          amount,
+          date: (dayNum ? dayNum + ' ' : '') + (state.month || 'October')
+        });
+      }
+
+      // Meals: Col 5=Sadhin, Col 6=Tanzid, Col 7=Akhirul, Col 8=Imam
+      if (dayNum >= 1 && dayNum <= 31) {
+        if (!newMeals[dayNum]) newMeals[dayNum] = {};
+        newMeals[dayNum]['Sadhin'] = parseFloat(row[5]) || 0;
+        newMeals[dayNum]['Tanzid'] = parseFloat(row[6]) || 0;
+        newMeals[dayNum]['Akhirul'] = parseFloat(row[7]) || 0;
+        newMeals[dayNum]['Imam'] = parseFloat(row[8]) || 0;
+      }
+
+      // Deposits
+      const mName = (row[10] || '').trim();
+      const depAmt = parseFloat(row[12]) || 0;
+      if (members.includes(mName) && depAmt > 0) {
+        newDeposits[mName] = depAmt;
+      }
+    }
+
+    // Apply updates if valid bazar found
+    if (newBazar.length > 0) {
+      state.bazar = newBazar;
+      state.meals = newMeals;
+      state.deposits = newDeposits;
+      saveState();
+      renderAll();
+      if (!silent) showToast('✅ গুগল শিট থেকে সফলভাবে লাইভ সিঙ্ক সম্পন্ন হয়েছে!');
+    }
+  } catch (err) {
+    console.warn('Google Sheet Sync note:', err);
+    if (!silent) showToast('গুগল শিট সিঙ্ক করা সম্ভব হয়নি');
+  }
 };
