@@ -56,9 +56,13 @@ function getFirestoreDocPath(monthId) {
   return `mess_data/${monthId}`;
 }
 
-function initFirebase(onRemoteChange, onMetaChange) {
+function initFirebase(onRemoteChange, onMetaChange, initialMonthId) {
   const config = getStoredFirebaseConfig();
   remoteStateChangeCallback = onRemoteChange;
+
+  if (initialMonthId) {
+    activeMonthDocId = initialMonthId;
+  }
 
   if (!config.projectId || config.projectId === 'YOUR_PROJECT_ID') {
     console.log('Firebase not configured yet. Operating in LocalStorage mode.');
@@ -88,11 +92,11 @@ function initFirebase(onRemoteChange, onMetaChange) {
       if (doc.exists) {
         const meta = doc.data();
         if (meta && Array.isArray(meta.list) && onMetaChange) {
-          onMetaChange(meta.list);
+          onMetaChange(meta.list, meta.activeMonthId);
         }
       } else {
         if (typeof allMonths !== 'undefined') {
-          syncMonthsMetaToCloud(allMonths);
+          syncMonthsMetaToCloud(allMonths, activeMonthDocId);
         }
       }
     }, (err) => {
@@ -155,9 +159,13 @@ function pushStateToFirebase(currentState, overrideMonthId) {
     });
 }
 
-function syncMonthsMetaToCloud(monthsList) {
+function syncMonthsMetaToCloud(monthsList, activeMonthId) {
   if (!db || !isCloudConnected || !Array.isArray(monthsList)) return;
-  db.doc('mess_meta/months').set({ list: monthsList }, { merge: true })
+  const payload = { list: monthsList };
+  if (activeMonthId) {
+    payload.activeMonthId = activeMonthId;
+  }
+  db.doc('mess_meta/months').set(payload, { merge: true })
     .catch(err => console.warn('Could not sync months metadata', err));
 }
 

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.4.6">
+  <link rel="stylesheet" href="style.css?v=1.5.0">
 </head>
 <body>
 
@@ -94,7 +94,11 @@
         <button class="nav-item" data-tab="utilities">বাসা ভাড়া ও বিল</button>
         <button class="nav-item" data-tab="settlement">হিসাব নিষ্পত্তি</button>
         <button class="nav-item" data-tab="users">মেম্বার ম্যানেজমেন্ট</button>
-      </nav>
+        <button class="dock-btn" data-tab="users">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      <span>সদস্য</span>
+    </button>
+  </nav>
     </div>
   </header>
 
@@ -178,6 +182,18 @@
           <p class="text-muted">কে কত টাকা খাবার খরচ করেছেন এবং কে পাবেন বা দেবেন</p>
         </div>
         <div class="pane-actions">
+          <button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()">
+            + নতুন মেম্বার
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="switchTab('users')">
+            👥 মেম্বার লিস্ট
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()">
+            + নতুন মেম্বার
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="switchTab('users')">
+            👥 মেম্বার ম্যানেজ
+          </button>
           <button class="btn btn-outline btn-sm admin-only-btn" id="openDepositModalBtn" style="display: none;">
             + ফান্ডে জমা দিন (Deposit)
           </button>
@@ -967,6 +983,31 @@
   </div>
 
     <!-- Member Details Pop Up Modal -->
+  
+  <!-- Modal: Add New Member -->
+  <div class="modal" id="addMemberModal">
+    <div class="modal-box" style="max-width: 420px;">
+      <div class="modal-head">
+        <h3>👥 নতুন সদস্য যোগ করুন</h3>
+        <button class="modal-close-btn" id="closeAddMemberModalBtn" onclick="closeAddMemberModal()">&times;</button>
+      </div>
+      <form id="quickAddMemberForm">
+        <div class="form-field">
+          <label for="quickNewMemberName">সদস্যের পুরো নাম *</label>
+          <input type="text" id="quickNewMemberName" class="input" placeholder="যেমন: Arif বা Shakil" required>
+        </div>
+        <div class="form-field" style="margin-top: 10px;">
+          <label for="quickNewMemberDeposit">প্রাথমিক ফান্ড জমা (টাকা, ঐচ্ছিক)</label>
+          <input type="number" id="quickNewMemberDeposit" class="input" placeholder="০" min="0">
+        </div>
+        <div class="modal-foot" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-outline btn-sm" id="cancelAddMemberModalBtn" onclick="closeAddMemberModal()">বাতিল</button>
+          <button type="submit" class="btn btn-primary btn-sm">+ সদস্য যোগ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal" id="memberDetailsModal">
     <div class="modal-box" style="max-width: 460px;">
       <div class="modal-head">
@@ -999,8 +1040,8 @@
   <!-- Firebase Compat Scripts -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js?v=1.1.2"></script>
-  <script src="app.js?v=1.4.6"></script>
+  <script src="firebase.js?v=1.1.3"></script>
+  <script src="app.js?v=1.5.0"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
@@ -1033,6 +1074,15 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
       <span>হিসাব</span>
     </button>
+  
+    <button class="dock-btn" data-tab="users">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      <span>সদস্য</span>
+    </button>
+    <button class="dock-btn" data-tab="users">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      <span>সদস্য</span>
+    </button>
   </nav>
 
   <!-- Quick Action Bottom Sheet -->
@@ -1064,6 +1114,15 @@
           <div class="sheet-action-text">
             <b>ফান্ডে টাকা জমা</b>
             <span>সদস্যের জমার পরিমাণ যোগ করুন</span>
+          </div>
+        </button>
+
+        
+        <button class="sheet-action-item" id="quickSheetMemberBtn" onclick="closeQuickActionSheet(); openAddMemberModal();">
+          <div class="sheet-action-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">👥</div>
+          <div class="sheet-action-text">
+            <b>নতুন মেম্বার যোগ / পরিচালনা</b>
+            <span>মেসে নতুন সদস্য যুক্ত বা সদস্য মুছুন</span>
           </div>
         </button>
 
