@@ -1,4 +1,27 @@
 
+window.openAddMemberModal = function() {
+  if (!isAdmin) {
+    showToast('নতুন সদস্য যোগ করতে প্রথমে এডমিন লগইন করুন');
+    if (typeof window.openAdminModal === 'function') window.openAdminModal();
+    return;
+  }
+  const modal = document.getElementById('addMemberModal');
+  if (modal) {
+    const input = document.getElementById('quickNewMemberName');
+    if (input) input.value = '';
+    const dep = document.getElementById('quickNewMemberDeposit');
+    if (dep) dep.value = '';
+    modal.classList.add('open');
+    setTimeout(() => { if (input) input.focus(); }, 100);
+  }
+};
+
+window.closeAddMemberModal = function() {
+  const modal = document.getElementById('addMemberModal');
+  if (modal) modal.classList.remove('open');
+};
+
+
 function copyTextToClipboard(text, successMessage) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(() => {
@@ -133,7 +156,30 @@ const MONTH_NAMES_EN = [
 const MESS_ACTIVE_MONTH_KEY = 'MESS_ACTIVE_MONTH_ID';
 const MESS_ALL_MONTHS_KEY = 'MESS_ALL_MONTHS_LIST';
 
-let currentMonthId = localStorage.getItem(MESS_ACTIVE_MONTH_KEY) || '2026-10';
+function getInitialActiveMonthId() {
+  const saved = localStorage.getItem(MESS_ACTIVE_MONTH_KEY);
+  if (saved) return saved;
+
+  try {
+    const raw = localStorage.getItem(MESS_ALL_MONTHS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed.sort((a, b) => a.id.localeCompare(b.id));
+        return parsed[parsed.length - 1].id;
+      }
+    }
+  } catch (e) {}
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const ym = `${y}-${m}`;
+  if (ym >= '2026-10') return ym;
+  return '2026-10';
+}
+
+let currentMonthId = getInitialActiveMonthId();
 
 let allMonths = [
   { id: '2026-10', name: 'October 2026', label: 'অক্টোবর ২০২৬', days: 31 }
@@ -160,7 +206,7 @@ function saveMonthsList() {
   try {
     localStorage.setItem(MESS_ALL_MONTHS_KEY, JSON.stringify(allMonths));
     if (typeof syncMonthsMetaToCloud === 'function') {
-      syncMonthsMetaToCloud(allMonths);
+      syncMonthsMetaToCloud(allMonths, currentMonthId);
     }
   } catch (e) {
     console.error('Error saving months list', e);
@@ -1789,13 +1835,9 @@ function renderUserManagement() {
         </div>
       </div>
       <div>
-        ${canDelete ? `
-          <button class="btn btn-sm btn-danger" onclick="deleteMember('${member}')">
-            মুছুন
-          </button>
-        ` : `
-          <span class="badge">সক্রিয়</span>
-        `}
+        <button type="button" class="btn btn-sm btn-danger" onclick="deleteMember('${member}')" title="সদস্য মুছে ফেলুন">
+          🗑️ মুছুন
+        </button>
       </div>
     `;
     list.appendChild(item);
@@ -1822,34 +1864,53 @@ function renderUserManagement() {
 }
 
 // Add New Member
-function addMember(name) {
-  const cleanName = name.trim();
-  if (!cleanName) return;
+function addMember(name, initialDeposit = 0) {
+  const cleanName = (name || '').trim();
+  if (!cleanName) return false;
 
   if (state.members.some(m => m.toLowerCase() === cleanName.toLowerCase())) {
     showToast('এই নামের সদস্য ইতিমধ্যে রয়েছে!');
-    return;
+    return false;
   }
 
   state.members.push(cleanName);
   if (!state.deposits) state.deposits = {};
   state.deposits[cleanName] = 0;
 
-  // Initialize meals for all 31 days for the new member
-  for (let day = 1; day <= 31; day++) {
+  // Initialize meals for all days in month
+  const daysInMonth = getDaysInMonthForState(state);
+  for (let day = 1; day <= daysInMonth; day++) {
     if (!state.meals[day]) state.meals[day] = {};
     state.meals[day][cleanName] = 0;
+  }
+
+  if (!state.memberBillStatus) state.memberBillStatus = {};
+  state.memberBillStatus[cleanName] = 'Unpaid';
+
+  const depAmt = Number(initialDeposit) || 0;
+  if (depAmt > 0) {
+    state.deposits[cleanName] = depAmt;
+    if (!Array.isArray(state.depositHistory)) state.depositHistory = [];
+    state.depositHistory.push({
+      id: 'dep-' + Date.now(),
+      member: cleanName,
+      amount: depAmt,
+      date: typeof getTodayIsoString === 'function' ? getTodayIsoString() : '1 ' + (state.month || ''),
+      note: 'প্রাথমিক ফান্ড জমা'
+    });
   }
 
   saveState();
   renderAll();
   showToast(`সদস্য "${cleanName}" যুক্ত করা হয়েছে!`);
+  return true;
 }
 
 // Delete Member
 window.deleteMember = function(name) {
   if (!isAdmin) {
     showToast('সদস্য মুছতে এডমিন লগইন প্রয়োজন');
+    if (typeof window.openAdminModal === 'function') window.openAdminModal();
     return;
   }
 
@@ -1858,14 +1919,21 @@ window.deleteMember = function(name) {
     return;
   }
 
-  if (confirm(`আপনি কি নিশ্চিত যে সদস্য "${name}"-কে মেস তালিকা থেকে মুছে ফেলতে চান? তার পূর্বের সকল মিল ও এন্ট্রি মুছে যাবে।`)) {
+  if (confirm(`আপনি কি নিশ্চিত যে সদস্য "${name}"-কে মেস তালিকা থেকে মুছে ফেলতে চান? তার সকল তথ্য ও মিল খাতা মুছে যাবে।`)) {
     state.members = state.members.filter(m => m !== name);
     if (state.deposits && state.deposits[name] !== undefined) {
       delete state.deposits[name];
     }
+    if (state.memberBillStatus && state.memberBillStatus[name] !== undefined) {
+      delete state.memberBillStatus[name];
+    }
+    if (state.memberCustomBillAdjustments && state.memberCustomBillAdjustments[name] !== undefined) {
+      delete state.memberCustomBillAdjustments[name];
+    }
 
     // Clean up meals
-    for (let day = 1; day <= 31; day++) {
+    const daysInMonth = getDaysInMonthForState(state);
+    for (let day = 1; day <= daysInMonth; day++) {
       if (state.meals[day] && state.meals[day][name] !== undefined) {
         delete state.meals[day][name];
       }
@@ -1997,6 +2065,7 @@ window.switchMonth = function(monthId) {
       if (remoteState && remoteState.members) {
         remoteState = sanitizeMonthState(remoteState, currentMonthId);
         state = remoteState;
+        ensureDepositHistory(state);
         saveStateLocalOnly();
         renderAll();
       }
@@ -2260,6 +2329,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Admin Modal
   const adminModal = document.getElementById('adminLoginModal');
   const openAdminModal = () => {
+    window.openAdminModal = openAdminModal;
     if (isAdmin) {
       // Logout
       isAdmin = false;
@@ -2919,7 +2989,41 @@ const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
         renderAll();
         showToast('🔄 ক্লাউড থেকে সর্বশেষ তথ্য লাইভ সিঙ্ক হয়েছে!');
       }
-    }, null, currentMonthId);
+    }, (cloudMonthsList, cloudActiveMonthId) => {
+      if (!Array.isArray(cloudMonthsList) || cloudMonthsList.length === 0) return;
+
+      const mergedMap = new Map();
+      allMonths.forEach(m => { if (m && m.id) mergedMap.set(m.id, m); });
+      cloudMonthsList.forEach(m => {
+        if (m && m.id) {
+          mergedMap.set(m.id, {
+            id: m.id,
+            name: m.name || m.id,
+            label: m.label || m.name || m.id,
+            days: m.days || 30
+          });
+        }
+      });
+
+      allMonths = Array.from(mergedMap.values());
+      allMonths.sort((a, b) => a.id.localeCompare(b.id));
+
+      try {
+        localStorage.setItem(MESS_ALL_MONTHS_KEY, JSON.stringify(allMonths));
+      } catch (e) {}
+
+      if (typeof renderMonthSwitcher === 'function') {
+        renderMonthSwitcher();
+      }
+
+      const savedChoice = localStorage.getItem(MESS_ACTIVE_MONTH_KEY);
+      const targetMonthId = cloudActiveMonthId || allMonths[allMonths.length - 1].id;
+      if (!savedChoice && targetMonthId && targetMonthId !== currentMonthId) {
+        if (typeof switchMonth === 'function') {
+          switchMonth(targetMonthId);
+        }
+      }
+    }, currentMonthId);
   }
 
   // Firebase Config Modal
