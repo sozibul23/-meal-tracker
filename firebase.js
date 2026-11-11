@@ -104,6 +104,15 @@ function initFirebase(onRemoteChange, onMetaChange, initialMonthId) {
       console.warn('Meta listener error', err);
     });
 
+    // Listen to shared Google Sheet config (webhook URL & month GIDs) across devices
+    db.doc('mess_meta/gsheet').onSnapshot((doc) => {
+      if (doc.exists && typeof window.applyCloudGsheetConfig === 'function') {
+        window.applyCloudGsheetConfig(doc.data());
+      }
+    }, (err) => {
+      console.warn('Gsheet meta listener note:', err);
+    });
+
   } catch (e) {
     console.error('Firebase initialization error', e);
     updateSyncIndicator(false, 'ফায়ারবেস সংযোগ ব্যর্থ');
@@ -176,6 +185,18 @@ function syncMonthsMetaToCloud(monthsList, activeMonthId) {
   }
   db.doc('mess_meta/months').set(payload, { merge: true })
     .catch(err => console.warn('Could not sync months metadata', err));
+}
+
+function syncGsheetConfigToCloud(gsheetConfig) {
+  if (!db || !isCloudConnected || !gsheetConfig) return;
+  db.doc('mess_meta/gsheet').set({
+    spreadsheetId: gsheetConfig.spreadsheetId || '',
+    autoSync: gsheetConfig.autoSync !== undefined ? Boolean(gsheetConfig.autoSync) : true,
+    webhookUrl: gsheetConfig.webhookUrl || '',
+    monthGids: gsheetConfig.monthGids || {},
+    updatedAt: new Date().toISOString()
+  }, { merge: true })
+    .catch(err => console.warn('Could not sync gsheet config', err));
 }
 
 function updateSyncIndicator(isOnline, text) {

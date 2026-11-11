@@ -1064,6 +1064,16 @@
             <input type="text" id="gsheetUrlInput" class="input mono" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=113477995" required>
             <span class="text-muted text-xs" style="display:block; margin-top:4px;">পূর্ণ লিংক অথবা শুধু GID (যেমন: 113477995) দিন।</span>
           </div>
+          <div class="form-field" style="margin-top: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+              <label for="gsheetWebhookInput" style="margin:0;">Apps Script Webhook URL (Two-Way: App ➔ Sheet)</label>
+              <button type="button" class="btn btn-outline btn-sm" id="copyAppsScriptBtn" style="padding:3px 8px; font-size:0.72rem;">📋 স্ক্রিপ্ট কপি</button>
+            </div>
+            <input type="url" id="gsheetWebhookInput" class="input mono" placeholder="https://script.google.com/macros/s/.../exec">
+            <span class="text-muted text-xs" style="display:block; margin-top:4px;">
+              সেটআপ: শিটে <b>Extensions ➔ Apps Script</b>-এ গিয়ে কপি করা কোড পেস্ট করে <b>Deploy ➔ Web app (Anyone)</b> দিয়ে পাওয়া URL এখানে দিন।
+            </span>
+          </div>
           <div class="gsheet-toggle-row">
             <div>
               <div style="font-weight:700; font-size:0.86rem;">অটো লাইভ সিঙ্ক (প্রতি ৩০ সেকেন্ড)</div>
@@ -1099,8 +1109,8 @@
   <!-- Firebase Compat Scripts -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js?v=1.2.0"></script>
-  <script src="app.js?v=1.6.0"></script>
+  <script src="firebase.js?v=1.2.1"></script>
+  <script src="app.js?v=1.6.1"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
