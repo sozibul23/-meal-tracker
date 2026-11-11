@@ -3,9 +3,10 @@ const { test, expect } = require('@playwright/test');
 test.describe('Meal Tracker Automated QA Test Suite', () => {
 
   test.beforeEach(async ({ page }) => {
-    // Prevent tests from mutating live Firestore or hitting external Google Sheets unless explicitly mocked
+    // Prevent tests from mutating live Firestore or hitting external Google Sheets/Apps Script unless explicitly mocked
     await page.route('**/*firestore.googleapis.com/**', route => route.abort());
     await page.route('**/*docs.google.com/**', route => route.fulfill({ status: 204, body: '' }));
+    await page.route('**/*script.google.com/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
 
     // Navigate to local test instance
     await page.goto('/');
@@ -256,6 +257,39 @@ test.describe('Meal Tracker Automated QA Test Suite', () => {
       }));
       expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth);
     }
+  });
+
+  test('TC10: Two-Way Sync (App -> Google Sheet Apps Script Webhook)', async ({ page }) => {
+    let capturedPayload = null;
+    await page.route('**/*script.google.com/**', async route => {
+      capturedPayload = JSON.parse(route.request().postData() || '{}');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    // Configure Webhook URL via Google Sheet Settings Modal
+    await page.locator('#openGsheetModalBtn').click();
+    await expect(page.locator('#gsheetModal')).toHaveClass(/open/);
+    await page.locator('#gsheetWebhookInput').fill('https://script.google.com/macros/s/test-webhook-id/exec');
+    await page.locator('#gsheetForm button[type="submit"]').click();
+    await expect(page.locator('#gsheetModal')).not.toHaveClass(/open/);
+    await expect(page.locator('#gsheetStatusText')).toHaveText('2-Way লাইভ');
+
+    // Authenticate as Admin and increment Day 1 meal
+    await page.evaluate(() => {
+      sessionStorage.setItem('MESS_ADMIN_LOGGED_IN', 'true');
+      window.isAdmin = true;
+      if (typeof updateAdminUI === 'function') updateAdminUI();
+      if (typeof renderAll === 'function') renderAll();
+      if (typeof switchTab === 'function') switchTab('meals');
+    });
+
+    const firstPlusBtn = page.locator('#mealsBody tr .meal-stepper button.step-btn', { hasText: '+' }).first();
+    await firstPlusBtn.click();
+
+    // Wait for 1200ms debounce push to fire
+    await expect.poll(() => capturedPayload, { timeout: 5000 }).not.toBeNull();
+    expect(capturedPayload.gid).toBe('113477995');
+    expect(capturedPayload.meals['1'].Sadhin).toBeGreaterThanOrEqual(1);
   });
 
 });

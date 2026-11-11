@@ -808,6 +808,9 @@ function saveState() {
     if (typeof pushStateToFirebase === 'function') {
       pushStateToFirebase(state);
     }
+    if (typeof schedulePushToGoogleSheet === 'function') {
+      schedulePushToGoogleSheet(state, currentMonthId);
+    }
   } catch (e) {
     console.error('Failed to save state', e);
   }
@@ -3814,7 +3817,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-11-v28';
+  const LATEST_BUILD = '2026-11-11-v29';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -4125,12 +4128,16 @@ const GSHEET_AUTO_SYNC_INTERVAL_MS = 30000;
 
 let gsheetAutoSyncTimer = null;
 let lastSheetSyncAttemptAt = 0;
+let lastSheetPushAt = 0;
+let sheetPushDebounceTimer = null;
 let isSheetSyncing = false;
+let isPushingToSheet = false;
 
 function getGsheetConfig() {
   const defaults = {
     spreadsheetId: GSHEET_SPREADSHEET_ID,
     autoSync: true,
+    webhookUrl: '',
     monthGids: { ...GSHEET_DEFAULT_MONTH_GIDS }
   };
   try {
@@ -4140,12 +4147,28 @@ function getGsheetConfig() {
       return {
         spreadsheetId: parsed.spreadsheetId || defaults.spreadsheetId,
         autoSync: parsed.autoSync !== undefined ? Boolean(parsed.autoSync) : true,
+        webhookUrl: parsed.webhookUrl || '',
         monthGids: { ...defaults.monthGids, ...(parsed.monthGids || {}) }
       };
     }
   } catch (e) {}
   return defaults;
 }
+
+window.applyCloudGsheetConfig = function(cloudCfg) {
+  if (!cloudCfg || typeof cloudCfg !== 'object') return;
+  const localCfg = getGsheetConfig();
+  const merged = {
+    spreadsheetId: cloudCfg.spreadsheetId || localCfg.spreadsheetId,
+    autoSync: cloudCfg.autoSync !== undefined ? Boolean(cloudCfg.autoSync) : localCfg.autoSync,
+    webhookUrl: cloudCfg.webhookUrl !== undefined ? cloudCfg.webhookUrl : localCfg.webhookUrl,
+    monthGids: { ...localCfg.monthGids, ...(cloudCfg.monthGids || {}) }
+  };
+  saveGsheetConfig(merged);
+  if (typeof updateSheetSyncStatusUI === 'function') {
+    updateSheetSyncStatusUI();
+  }
+};
 
 function saveGsheetConfig(cfg) {
   try {
@@ -4171,7 +4194,8 @@ function getSheetTargetForMonth(monthId) {
     spreadsheetId: cfg.spreadsheetId || GSHEET_SPREADSHEET_ID,
     gid,
     sheetName,
-    autoSync: cfg.autoSync
+    autoSync: cfg.autoSync,
+    webhookUrl: (cfg.webhookUrl || '').trim()
   };
 }
 
@@ -4379,19 +4403,18 @@ function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
       const otherAmt = parseFloat(row[otherExpendCol]) || 0;
       const paidByRaw = (row[otherPaidByCol] || '').trim();
 
-      if (itemType.includes('other') || (otherAmt > 0 && mealAmt === 0)) {
-        const amt = otherAmt || mealAmt;
-        if (amt > 0) {
-          const buyer = matchMemberName(paidByRaw, members) || paidByRaw || 'মেস';
-          parsedSharedItems.push({
-            id: sharedCounter++,
-            name: itemDesc,
-            price: amt,
-            buyer,
-            date: dateStr
-          });
-        }
-      } else if (mealAmt > 0) {
+      if (otherAmt > 0 || (itemType.includes('other') && mealAmt > 0)) {
+        const amt = otherAmt > 0 ? otherAmt : mealAmt;
+        const buyer = matchMemberName(paidByRaw, members) || paidByRaw || 'মেস';
+        parsedSharedItems.push({
+          id: sharedCounter++,
+          name: itemDesc,
+          price: amt,
+          buyer,
+          date: dateStr
+        });
+      }
+      if (mealAmt > 0 && !itemType.includes('other')) {
         const shopper = matchMemberName(itemDesc, members) || 'মেস ফান্ড';
         parsedBazar.push({
           id: bazarCounter++,
@@ -4623,7 +4646,13 @@ function updateSheetSyncStatusUI(syncState = 'idle', extraMsg = '') {
     if (barDot) barDot.className = 'status-dot syncing';
     if (text) text.textContent = 'সিঙ্ক হচ্ছে...';
     if (syncIcon) syncIcon.classList.add('is-spinning');
-    if (metaText) metaText.textContent = 'Google Sheet থেকে সর্বশেষ তথ্য আনা হচ্ছে...';
+    if (metaText) metaText.textContent = extraMsg || 'Google Sheet থেকে সর্বশেষ তথ্য আনা হচ্ছে...';
+  } else if (syncState === 'pushing') {
+    if (dot) dot.className = 'status-dot syncing';
+    if (barDot) barDot.className = 'status-dot syncing';
+    if (text) text.textContent = 'শিটে সেভ...';
+    if (syncIcon) syncIcon.classList.add('is-spinning');
+    if (metaText) metaText.textContent = 'অ্যাপের পরিবর্তন Google Sheet-এ পাঠানো হচ্ছে...';
   } else if (syncState === 'error') {
     if (dot) dot.className = 'status-dot offline';
     if (barDot) barDot.className = 'status-dot offline';
@@ -4633,16 +4662,17 @@ function updateSheetSyncStatusUI(syncState = 'idle', extraMsg = '') {
   } else {
     if (syncIcon) syncIcon.classList.remove('is-spinning');
     const isLinked = Boolean(target.gid);
+    const isTwoWay = Boolean(target.webhookUrl);
     if (dot) dot.className = `status-dot ${isLinked ? 'online' : 'offline'}`;
     if (barDot) barDot.className = `status-dot ${isLinked ? 'online' : 'offline'}`;
-    if (text) text.textContent = isLinked ? 'শিট লাইভ' : 'শিট অফ';
+    if (text) text.textContent = isLinked ? (isTwoWay ? '2-Way লাইভ' : 'শিট লাইভ') : 'শিট অফ';
     if (metaText) {
       if (extraMsg) {
         metaText.textContent = extraMsg;
       } else if (isLinked) {
-        const autoLabel = target.autoSync ? 'অটো-সিঙ্ক চালু' : 'ম্যানুয়াল সিঙ্ক';
+        const modeLabel = isTwoWay ? 'Two-Way (App ⇄ Sheet)' : (target.autoSync ? 'অটো-সিঙ্ক (Sheet ➔ App)' : 'ম্যানুয়াল সিঙ্ক');
         const timeInfo = lastSyncStr ? ` • শেষ আপডেট: ${lastSyncStr}` : '';
-        metaText.textContent = `${autoLabel} (gid=${target.gid})${timeInfo}`;
+        metaText.textContent = `${modeLabel} • gid=${target.gid}${timeInfo}`;
       } else {
         metaText.textContent = 'এই মাসের জন্য কোনো Google Sheet GID যুক্ত নেই';
       }
@@ -4661,9 +4691,12 @@ function updateSheetSyncStatusUI(syncState = 'idle', extraMsg = '') {
       : 0;
     const bazarCount = (state && state.bazar) ? state.bazar.length : 0;
     const sharedCount = (state && state.sharedItems) ? state.sharedItems.length : 0;
+    const modeBadge = target.webhookUrl
+      ? '<span style="color:var(--success);font-weight:700;">🟢 Two-Way Sync চালু (App ⇄ Sheet)</span>'
+      : '<span style="color:#facc15;font-weight:700;">🟡 One-Way Sync (শুধু Sheet ➔ App)</span>';
     modalBox.innerHTML = `
-      <div><b>চলতি মাস:</b> ${state ? (state.monthBn || state.month) : currentMonthId}</div>
-      <div><b>লিংকড GID:</b> <code>${target.gid || 'সেট করা নেই'}</code></div>
+      <div><b>মোড:</b> ${modeBadge}</div>
+      <div><b>চলতি মাস:</b> ${state ? (state.monthBn || state.month) : currentMonthId} • <b>GID:</b> <code>${target.gid || 'নেই'}</code></div>
       <div><b>শেষ সিঙ্ক:</b> ${lastSyncStr || 'এখনো সিঙ্ক হয়নি'}</div>
       <div><b>বর্তমান ডেটা:</b> ${state ? state.members.length : 0} জন সদস্য • ${mealsCount} মিল • ${bazarCount} বাজার • ${sharedCount} মেস সামগ্রী</div>
     `;
@@ -4770,10 +4803,108 @@ window.syncFromGoogleSheetGlobal = async function(silent = false, forceApply = f
   }
 };
 
+async function pushStateToGoogleSheet(targetState, monthIdOverride) {
+  const mId = monthIdOverride || currentMonthId;
+  const target = getSheetTargetForMonth(mId);
+  if (!target.webhookUrl || !target.gid || !targetState) return false;
+  if (mId === '2026-10') return false;
+
+  isPushingToSheet = true;
+  lastSheetPushAt = Date.now();
+  updateSheetSyncStatusUI('pushing');
+
+  try {
+    const payload = {
+      gid: target.gid,
+      sheetName: target.sheetName,
+      monthId: mId,
+      daysInMonth: targetState.daysInMonth || getDaysInMonthForState(targetState),
+      members: targetState.members || [],
+      meals: targetState.meals || {},
+      bazar: targetState.bazar || [],
+      sharedItems: targetState.sharedItems || [],
+      deposits: targetState.deposits || {},
+      fixedBills: targetState.fixedBills || [],
+      memberBillStatus: targetState.memberBillStatus || {}
+    };
+
+    const res = await fetch(target.webhookUrl, {
+      method: 'POST',
+      mode: 'cors',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res && res.ok) {
+      try {
+        const json = await res.json();
+        if (json && json.ok === false) {
+          throw new Error(json.error || 'Apps Script returned error');
+        }
+      } catch (parseErr) {}
+    }
+
+    lastSheetPushAt = Date.now();
+    if (!targetState.sheetMeta) targetState.sheetMeta = {};
+    targetState.sheetMeta.lastSyncedAt = new Date().toISOString();
+    saveStateLocalOnly();
+    updateSheetSyncStatusUI('idle', 'অ্যাপ থেকে Google Sheet আপডেট হয়েছে ✅');
+    return true;
+  } catch (err) {
+    // Fallback with no-cors if Apps Script redirect blocks reading response headers
+    try {
+      await fetch(target.webhookUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          gid: target.gid,
+          sheetName: target.sheetName,
+          monthId: mId,
+          daysInMonth: targetState.daysInMonth || getDaysInMonthForState(targetState),
+          members: targetState.members || [],
+          meals: targetState.meals || {},
+          bazar: targetState.bazar || [],
+          sharedItems: targetState.sharedItems || [],
+          deposits: targetState.deposits || {},
+          fixedBills: targetState.fixedBills || [],
+          memberBillStatus: targetState.memberBillStatus || {}
+        })
+      });
+      lastSheetPushAt = Date.now();
+      updateSheetSyncStatusUI('idle', 'Google Sheet-এ আপডেট পাঠানো হয়েছে');
+      return true;
+    } catch (err2) {
+      console.warn('Google Sheet Two-Way Push failed:', err2);
+      updateSheetSyncStatusUI('error', 'শিটে পাঠানো যায়নি (Webhook ত্রুটি)');
+      return false;
+    }
+  } finally {
+    isPushingToSheet = false;
+  }
+}
+window.pushStateToGoogleSheet = pushStateToGoogleSheet;
+
+function schedulePushToGoogleSheet(targetState, monthIdOverride) {
+  const mId = monthIdOverride || currentMonthId;
+  const target = getSheetTargetForMonth(mId);
+  if (!target.webhookUrl || !target.gid || mId === '2026-10') return;
+
+  lastSheetPushAt = Date.now();
+  if (sheetPushDebounceTimer) clearTimeout(sheetPushDebounceTimer);
+  const snapshotState = JSON.parse(JSON.stringify(targetState));
+  sheetPushDebounceTimer = setTimeout(() => {
+    pushStateToGoogleSheet(snapshotState, mId);
+  }, 1200);
+}
+window.schedulePushToGoogleSheet = schedulePushToGoogleSheet;
+
 function maybeAutoSyncGoogleSheet(forceCheck = false) {
   const target = getSheetTargetForMonth(currentMonthId);
   if (!target.autoSync || !target.gid) return;
   if (currentMonthId === '2026-10' && !getGsheetConfig().monthGids['2026-10-auto']) return;
+  if (isPushingToSheet || (Date.now() - lastSheetPushAt < 15000)) return;
 
   const elapsed = Date.now() - lastSheetSyncAttemptAt;
   if (!forceCheck && elapsed < 8000) return;
@@ -4796,6 +4927,8 @@ function initGoogleSheetSyncEngine() {
   const form = document.getElementById('gsheetForm');
   const syncNowModalBtn = document.getElementById('gsheetSyncNowModalBtn');
   const urlInput = document.getElementById('gsheetUrlInput');
+  const webhookInput = document.getElementById('gsheetWebhookInput');
+  const copyScriptBtn = document.getElementById('copyAppsScriptBtn');
   const autoToggle = document.getElementById('gsheetAutoSyncToggle');
   const openLinkBtn = document.getElementById('gsheetOpenLinkBtn');
 
@@ -4806,6 +4939,7 @@ function initGoogleSheetSyncEngine() {
         ? `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit?gid=${target.gid}#gid=${target.gid}`
         : `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit`;
     }
+    if (webhookInput) webhookInput.value = target.webhookUrl || '';
     if (autoToggle) autoToggle.checked = target.autoSync;
     if (openLinkBtn && target.gid) {
       openLinkBtn.href = `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit?gid=${target.gid}#gid=${target.gid}`;
@@ -4813,6 +4947,20 @@ function initGoogleSheetSyncEngine() {
     updateSheetSyncStatusUI();
     if (modal) modal.classList.add('open');
   };
+
+  if (copyScriptBtn) {
+    copyScriptBtn.addEventListener('click', async () => {
+      try {
+        const resp = await fetch('./google-apps-script.gs');
+        if (!resp.ok) throw new Error('Could not load script file');
+        const gsCode = await resp.text();
+        await navigator.clipboard.writeText(gsCode);
+        showToast('📋 Apps Script কোড কপি হয়েছে! Google Sheet ➔ Extensions ➔ Apps Script-এ পেস্ট করুন');
+      } catch (e) {
+        showToast('google-apps-script.gs ফাইল থেকে কোড কপি করুন');
+      }
+    });
+  }
   window.openGsheetModal = openGsheetModal;
 
   if (pillBtn) pillBtn.addEventListener('click', openGsheetModal);
@@ -4840,10 +4988,14 @@ function initGoogleSheetSyncEngine() {
       if (parsedInput.gid) {
         cfg.monthGids[currentMonthId] = parsedInput.gid;
       }
+      cfg.webhookUrl = webhookInput ? webhookInput.value.trim() : (cfg.webhookUrl || '');
       cfg.autoSync = autoToggle ? autoToggle.checked : true;
       saveGsheetConfig(cfg);
+      if (typeof syncGsheetConfigToCloud === 'function') {
+        syncGsheetConfigToCloud(cfg);
+      }
       if (modal) modal.classList.remove('open');
-      showToast('Google Sheet সেটিংস সেভ হয়েছে! সিঙ্ক হচ্ছে...');
+      showToast(cfg.webhookUrl ? '✅ Two-Way Sync সেটিংস সেভ হয়েছে!' : 'Google Sheet সেটিংস সেভ হয়েছে! সিঙ্ক হচ্ছে...');
       await syncFromGoogleSheetGlobal(false, true);
     });
   }
