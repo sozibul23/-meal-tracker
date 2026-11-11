@@ -2,7 +2,7 @@
 <html lang="bn" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>মিল ট্র্যাকার - Meal Tracker | স্মার্ট মেস ও মিল খাতা</title>
   <meta name="description" content="ব্যাচেলর মেসের মিল, বাজার খরচ ও বিলের ক্রিয়েটিভ ও মিনিমাল ডিজিটাল খাতা।">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.5.0">
+  <link rel="stylesheet" href="style.css?v=1.6.0">
 </head>
 <body>
 
@@ -32,6 +32,12 @@
       </div>
 
       <div class="header-controls">
+        <!-- Google Sheet Live Sync Indicator / Button -->
+        <button id="gsheetSyncIndicator" class="btn btn-outline btn-sm sheet-sync-pill" type="button" title="Google Sheet লাইভ সিঙ্ক (ক্লিক করে এখনই সিঙ্ক/সেটিংস দেখুন)">
+          <span class="status-dot online" id="gsheetStatusDot"></span>
+          <span class="status-text" id="gsheetStatusText">শিট লাইভ</span>
+        </button>
+
         <!-- Cloud Sync Indicator / Button -->
         <button id="cloudSyncIndicator" class="btn btn-outline btn-sm cloud-pill" style="display: none;" title="ক্লাউড ডেটাবেজ স্ট্যাটাস">
           <span class="status-dot offline"></span>
@@ -94,11 +100,7 @@
         <button class="nav-item" data-tab="utilities">বাসা ভাড়া ও বিল</button>
         <button class="nav-item" data-tab="settlement">হিসাব নিষ্পত্তি</button>
         <button class="nav-item" data-tab="users">মেম্বার ম্যানেজমেন্ট</button>
-        <button class="dock-btn" data-tab="users">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-      <span>সদস্য</span>
-    </button>
-  </nav>
+      </nav>
     </div>
   </header>
 
@@ -131,6 +133,27 @@
             <span>+ নতুন মাস শুরু করুন</span>
           </button>
         </div>
+    </div>
+
+    <!-- Live Google Sheet Auto-Sync Strip -->
+    <div class="sheet-sync-bar" id="sheetSyncBar">
+      <div class="sheet-sync-info">
+        <span class="sheet-sync-badge" id="sheetSyncBadge">
+          <span class="status-dot online" id="sheetBarDot"></span>
+          <span>Google Sheet</span>
+        </span>
+        <span class="sheet-sync-meta" id="sheetSyncMetaText">লাইভ অটো-সিঙ্ক চালু আছে (gid=113477995)</span>
+      </div>
+      <div class="sheet-sync-actions">
+        <button type="button" class="btn btn-outline btn-sm sheet-action-btn" id="quickSheetSyncBtn" title="এখনই Google Sheet থেকে সর্বশেষ তথ্য আনুন">
+          <span id="quickSheetSyncIcon">🔄</span>
+          <span>সিঙ্ক</span>
+        </button>
+        <button type="button" class="btn btn-outline btn-sm sheet-action-btn" id="openGsheetModalBtn" title="Google Sheet লিংক ও অটো-সিঙ্ক সেটিংস">
+          <span>⚙️</span>
+          <span class="desktop-only">শিট সেটিংস</span>
+        </button>
+      </div>
     </div>
 
     <!-- Clean Minimal Stats (Cards) -->
@@ -182,12 +205,6 @@
           <p class="text-muted">কে কত টাকা খাবার খরচ করেছেন এবং কে পাবেন বা দেবেন</p>
         </div>
         <div class="pane-actions">
-          <button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()">
-            + নতুন মেম্বার
-          </button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="switchTab('users')">
-            👥 মেম্বার লিস্ট
-          </button>
           <button type="button" class="btn btn-primary btn-sm" onclick="openAddMemberModal()">
             + নতুন মেম্বার
           </button>
@@ -1030,6 +1047,48 @@
     </div>
   </div>
 
+  <!-- Modal: Google Sheet Live Sync Setup -->
+  <div class="modal" id="gsheetModal">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-head">
+        <h3>📊 Google Sheet লাইভ সিঙ্ক</h3>
+        <button class="modal-close-btn" id="closeGsheetModalBtn">&times;</button>
+      </div>
+      <form id="gsheetForm">
+        <div class="modal-body">
+          <p class="text-muted text-sm">
+            Google Sheet-এ কোনো মিল, বাজার, মেস সামগ্রী, জমা বা ভাড়া-বিল আপডেট করলে অ্যাপে স্বয়ংক্রিয়ভাবে সিঙ্ক হবে।
+          </p>
+          <div class="form-field" style="margin-top: 12px;">
+            <label for="gsheetUrlInput">চলতি মাসের Google Sheet লিংক বা GID</label>
+            <input type="text" id="gsheetUrlInput" class="input mono" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=113477995" required>
+            <span class="text-muted text-xs" style="display:block; margin-top:4px;">পূর্ণ লিংক অথবা শুধু GID (যেমন: 113477995) দিন।</span>
+          </div>
+          <div class="gsheet-toggle-row">
+            <div>
+              <div style="font-weight:700; font-size:0.86rem;">অটো লাইভ সিঙ্ক (প্রতি ৩০ সেকেন্ড)</div>
+              <div class="text-muted text-xs">অ্যাপ ওপেন করলে বা ট্যাবে ফিরলে অটোমেটিক সিঙ্ক হবে</div>
+            </div>
+            <label class="switch-label">
+              <input type="checkbox" id="gsheetAutoSyncToggle" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+          <div class="gsheet-status-box" id="gsheetModalStatusBox">
+            সিঙ্ক স্ট্যাটাস লোড হচ্ছে...
+          </div>
+        </div>
+        <div class="modal-foot" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <a href="https://docs.google.com/spreadsheets/d/1rlkL3wpu6SiLj9OCN5p-dG_uvZh1LlQiuPJYYatGlf8/edit?gid=113477995#gid=113477995" target="_blank" rel="noopener" id="gsheetOpenLinkBtn" class="btn btn-outline btn-sm">📄 শিট খুলুন</a>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-outline btn-sm" id="gsheetSyncNowModalBtn">🔄 এখনই সিঙ্ক</button>
+            <button type="submit" class="btn btn-primary btn-sm">সেভ করুন</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Minimal Toast -->
   <div class="toast" id="toast"></div>
 
@@ -1040,8 +1099,8 @@
   <!-- Firebase Compat Scripts -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js?v=1.1.3"></script>
-  <script src="app.js?v=1.5.0"></script>
+  <script src="firebase.js?v=1.2.0"></script>
+  <script src="app.js?v=1.6.0"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">
@@ -1075,10 +1134,6 @@
       <span>হিসাব</span>
     </button>
   
-    <button class="dock-btn" data-tab="users">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-      <span>সদস্য</span>
-    </button>
     <button class="dock-btn" data-tab="users">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
       <span>সদস্য</span>

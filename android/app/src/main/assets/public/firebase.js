@@ -23,6 +23,7 @@ let activeDocUnsubscribe = null;
 let activeMetaUnsubscribe = null;
 let activeMonthDocId = '2026-10';
 let remoteStateChangeCallback = null;
+const hydratedMonths = new Set();
 
 function getStoredFirebaseConfig() {
   try {
@@ -123,6 +124,7 @@ function listenToMonth(monthId, onRemoteChange) {
   const docPath = getFirestoreDocPath(currentListeningMonth);
 
   activeDocUnsubscribe = db.doc(docPath).onSnapshot((doc) => {
+    hydratedMonths.add(currentListeningMonth);
     if (doc.exists) {
       const cloudData = doc.data();
       if (cloudData && remoteStateChangeCallback) {
@@ -134,7 +136,7 @@ function listenToMonth(monthId, onRemoteChange) {
     } else {
       console.log(`No document for ${docPath} in Firestore yet. Pushing local state...`);
       if (typeof state !== 'undefined' && state) {
-        pushStateToFirebase(state, currentListeningMonth);
+        pushStateToFirebase(state, currentListeningMonth, true);
       }
     }
   }, (error) => {
@@ -144,10 +146,17 @@ function listenToMonth(monthId, onRemoteChange) {
 }
 
 // Push local changes to Firestore
-function pushStateToFirebase(currentState, overrideMonthId) {
+function pushStateToFirebase(currentState, overrideMonthId, forceOverwrite = false) {
   if (!db || !isCloudConnected || isSyncingFromRemote) return;
 
   const targetMonthId = overrideMonthId || (currentState && currentState.monthId) || (typeof currentMonthId !== 'undefined' ? currentMonthId : null) || activeMonthDocId || '2026-10';
+
+  // Prevent a brand-new browser context with unhydrated fresh state from wiping existing Firestore data
+  if (!forceOverwrite && !hydratedMonths.has(targetMonthId)) {
+    console.warn(`Blocked pushStateToFirebase for ${targetMonthId} before initial cloud snapshot hydration.`);
+    return;
+  }
+
   const docPath = getFirestoreDocPath(targetMonthId);
   db.doc(docPath).set(currentState, { merge: true })
     .then(() => {

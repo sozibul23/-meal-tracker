@@ -3,6 +3,10 @@ const { test, expect } = require('@playwright/test');
 test.describe('Meal Tracker Automated QA Test Suite', () => {
 
   test.beforeEach(async ({ page }) => {
+    // Prevent tests from mutating live Firestore or hitting external Google Sheets unless explicitly mocked
+    await page.route('**/*firestore.googleapis.com/**', route => route.abort());
+    await page.route('**/*docs.google.com/**', route => route.fulfill({ status: 204, body: '' }));
+
     // Navigate to local test instance
     await page.goto('/');
     // Wait for core UI header to hydrate
@@ -203,6 +207,55 @@ test.describe('Meal Tracker Automated QA Test Suite', () => {
     await fab.click();
     const sheet = page.locator('#quickActionSheet');
     await expect(sheet).toHaveClass(/open/);
+  });
+
+  test('TC08: Google Sheet (gid=113477995) Live Sync Updates App State & UI', async ({ page }) => {
+    const sampleCsv = [
+      '"Date","Item type","Name ","Meal Expend","Other Expend","Other paid by","","","","Sadhin","Meal - Cost 2026 Tanzid","Akhirul","Tusher","Imam","","","","Deposit","Cost","Remain","","",""',
+      '"1","Meals","Mach, fulkopi","880","","","","","1October","2","1","2","","","","Sadhin","","2000","","","","",""',
+      '"2","Meals","murgi","590","","","","","2October","2","1","2","","","","Tanzid","","1500","","","","",""',
+      '"","","","","","","","","","","","","","","","Tusher","","0","","","","",""',
+      '"3","Others","vim","","30","Sadhin","","","3October","1","1","1","","","","Akhirul","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Imam","","0","","","","",""',
+      '"","","","","","","","","","","","","","","","Others Cost","","","","","","",""',
+      '"","","","","","","","","","","","","","","","Item","","","","","Akhirul","Imam","Tusher"',
+      '"","","","","","","","","","","","","","","","House Rent","16000","4000","","","Paid","Paid",""',
+      '"","","","","","","","","","","","","","","","Wifi","690","172.5","","","Paid","Paid",""',
+      '"","","","","","","","","","","","","","","","Bua","700","233.3333333","","","Paid","",""'
+    ].join('\n');
+
+    await page.route('**/*docs.google.com/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      body: sampleCsv
+    }));
+
+    await page.locator('#quickSheetSyncBtn').click();
+
+    // Verify members (5 including Tusher), meals (13), meal bazar (1470), shared (30)
+    await expect(page.locator('#memberCardsGrid')).toContainText('Tusher');
+    await expect(page.locator('#kpiRateFormula')).toContainText('13 মিল');
+    await expect(page.locator('#kpiTotalBazar')).toContainText('1,500');
+    await expect(page.locator('#dashboardRecentBazar')).toContainText('vim');
+  });
+
+  test('TC09: Mobile Responsiveness Across Small & Standard Phones (No Horizontal Overflow)', async ({ page }) => {
+    for (const vp of [{ width: 360, height: 740 }, { width: 412, height: 915 }]) {
+      await page.setViewportSize(vp);
+      await expect(page.locator('#gsheetSyncIndicator')).toBeVisible();
+      await expect(page.locator('#sheetSyncBar')).toBeVisible();
+      await expect(page.locator('#floatingDock')).toBeVisible();
+
+      // Ensure no duplicate member dock button
+      await expect(page.locator('#floatingDock .dock-btn[data-tab="users"]')).toHaveCount(1);
+
+      // Ensure zero horizontal page overflow
+      const overflow = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth
+      }));
+      expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth);
+    }
   });
 
 });

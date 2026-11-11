@@ -653,8 +653,9 @@ function sanitizeMonthState(st, monthId) {
     return createFreshMonthState(monthId);
   }
 
-  // Ensure fixed bills in November or later have Bua bill = 2000
-  if (monthId >= '2026-11' && Array.isArray(st.fixedBills)) {
+  // Ensure fixed bills in November or later have Bua bill = 2000 (skip if synced from Google Sheet)
+  const isSheetSynced = Boolean(st.sheetMeta && st.sheetMeta.gid);
+  if (!isSheetSynced && monthId >= '2026-11' && Array.isArray(st.fixedBills)) {
     st.fixedBills.forEach(b => {
       const isBua = b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua'));
       if (isBua && (b.amount === 700 || !b.amount)) {
@@ -921,6 +922,23 @@ function formatBDT(amount,
   return `${prefix}৳${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function isMemberExcludedFromBill(bill, memberName, totalMembersCount) {
+  if (!bill || !memberName) return false;
+  if (Array.isArray(bill.excludedMembers)) {
+    return bill.excludedMembers.includes(memberName);
+  }
+  const isBua = bill.title && (
+    bill.title.includes('বুয়া') ||
+    bill.title.includes('খালা') ||
+    bill.title.toLowerCase().includes('bua') ||
+    bill.title.toLowerCase().includes('cook')
+  );
+  if (isBua && memberName === 'Imam') return true;
+  if (bill.note && bill.note.includes('৩ জনের') && memberName === 'Imam') return true;
+  if (bill.splitCount < totalMembersCount && memberName === 'Imam' && isBua) return true;
+  return false;
+}
+
 // Calculate Metrics (Fund-based calculation)
 function calculateMetrics() {
   if (!state.deposits) state.deposits = {};
@@ -1003,9 +1021,7 @@ function calculateMetrics() {
     // Calculate this member's share across fixed utility bills
     let utilityTotal = 0;
     (state.fixedBills || []).forEach(b => {
-      const isExcluded = (b.note && b.note.includes('৩ জনের') && name === 'Imam') ||
-                         (b.splitCount < state.members.length && name === 'Imam') ||
-                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && name === 'Imam');
+      const isExcluded = isMemberExcludedFromBill(b, name, state.members.length);
       const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
       utilityTotal += share;
     });
@@ -1597,9 +1613,7 @@ function renderUtilities(metrics) {
 
   state.fixedBills.forEach(b => {
     state.members.forEach(m => {
-      const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
-                         (b.splitCount < state.members.length && m === 'Imam') ||
-                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
+      const isExcluded = isMemberExcludedFromBill(b, m, state.members.length);
       const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
       memberBills[m].shares[b.id] = {
         amount: share,
@@ -2481,6 +2495,12 @@ window.switchMonth = function(monthId) {
   }
 
   renderAll();
+  if (typeof updateSheetSyncStatusUI === 'function') {
+    updateSheetSyncStatusUI();
+  }
+  if (typeof maybeAutoSyncGoogleSheet === 'function') {
+    maybeAutoSyncGoogleSheet(true);
+  }
   const mMeta = allMonths.find(m => m.id === currentMonthId);
   showToast(`মাস পরিবর্তিত হয়েছে: ${mMeta ? (mMeta.label || mMeta.name) : currentMonthId}`);
 };
@@ -3375,6 +3395,11 @@ const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
     });
   }
 
+  // Google Sheet Live Auto-Sync Setup
+  if (typeof initGoogleSheetSyncEngine === 'function') {
+    initGoogleSheetSyncEngine();
+  }
+
   // Firebase Realtime Sync Setup
   if (typeof initFirebase === 'function') {
     initFirebase((remoteState, sourceMonthId) => {
@@ -3789,7 +3814,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-04-v27';
+  const LATEST_BUILD = '2026-11-11-v28';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -4088,113 +4113,760 @@ ${memberLines.join('\n')}
 
 
 // ==========================================
-// Google Sheet Live Auto-Sync Engine
+// Google Sheet Live Auto-Sync Engine (v2 - gid=113477995 + Multi-Tab Support)
 // ==========================================
 const GSHEET_SPREADSHEET_ID = '1rlkL3wpu6SiLj9OCN5p-dG_uvZh1LlQiuPJYYatGlf8';
+const GSHEET_CONFIG_STORAGE_KEY = 'MESS_GSHEET_CONFIG_V1';
+const GSHEET_DEFAULT_MONTH_GIDS = {
+  '2026-10': '1375124951',
+  '2026-11': '113477995'
+};
+const GSHEET_AUTO_SYNC_INTERVAL_MS = 30000;
 
-window.syncFromGoogleSheetGlobal = async function(silent = false) {
+let gsheetAutoSyncTimer = null;
+let lastSheetSyncAttemptAt = 0;
+let isSheetSyncing = false;
+
+function getGsheetConfig() {
+  const defaults = {
+    spreadsheetId: GSHEET_SPREADSHEET_ID,
+    autoSync: true,
+    monthGids: { ...GSHEET_DEFAULT_MONTH_GIDS }
+  };
   try {
-    if (!silent) showToast('🔄 গুগল শিট থেকে সর্বশেষ ডেটা লোড হচ্ছে...');
-    
-    // Determine sheet name based on active month
-    let sheetName = 'October';
-    if (currentMonthId === '2026-11') sheetName = 'November';
-    else if (currentMonthId === '2026-09') sheetName = 'September';
+    const raw = localStorage.getItem(GSHEET_CONFIG_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        spreadsheetId: parsed.spreadsheetId || defaults.spreadsheetId,
+        autoSync: parsed.autoSync !== undefined ? Boolean(parsed.autoSync) : true,
+        monthGids: { ...defaults.monthGids, ...(parsed.monthGids || {}) }
+      };
+    }
+  } catch (e) {}
+  return defaults;
+}
 
-    const url = `https://docs.google.com/spreadsheets/d/${GSHEET_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Sheet network response failed');
-    const csv = await res.text();
+function saveGsheetConfig(cfg) {
+  try {
+    localStorage.setItem(GSHEET_CONFIG_STORAGE_KEY, JSON.stringify(cfg));
+  } catch (e) {
+    console.warn('Could not save Google Sheet config', e);
+  }
+}
 
-    const lines = csv.split('\n').filter(l => l.trim().length > 0);
-    if (lines.length < 5) return;
+function getSheetTargetForMonth(monthId) {
+  const cfg = getGsheetConfig();
+  const gid = cfg.monthGids[monthId] || (monthId >= '2026-11' ? '113477995' : null);
+  let sheetName = 'October';
+  if (monthId === '2026-11') sheetName = 'November';
+  else if (monthId === '2026-09') sheetName = 'September';
+  else if (monthId && monthId.includes('-')) {
+    const mNum = parseInt(monthId.split('-')[1], 10);
+    if (mNum >= 1 && mNum <= 12 && typeof MONTH_NAMES_EN !== 'undefined') {
+      sheetName = MONTH_NAMES_EN[mNum - 1];
+    }
+  }
+  return {
+    spreadsheetId: cfg.spreadsheetId || GSHEET_SPREADSHEET_ID,
+    gid,
+    sheetName,
+    autoSync: cfg.autoSync
+  };
+}
 
-    function parseCsvRow(line) {
-      const result = [];
-      let cur = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const c = line[i];
-        if (c === '"') {
-          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
-          else inQuotes = !inQuotes;
-        } else if (c === ',' && !inQuotes) {
-          result.push(cur.trim());
-          cur = '';
-        } else {
-          cur += c;
+function parseGoogleSheetInput(inputStr) {
+  const trimmed = (inputStr || '').trim();
+  const cfg = getGsheetConfig();
+  let spreadsheetId = cfg.spreadsheetId || GSHEET_SPREADSHEET_ID;
+  let gid = null;
+
+  const idMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (idMatch) spreadsheetId = idMatch[1];
+
+  const gidMatch = trimmed.match(/[?&#]gid=(\d+)/);
+  if (gidMatch) gid = gidMatch[1];
+  else if (/^\d+$/.test(trimmed)) gid = trimmed;
+
+  return { spreadsheetId, gid };
+}
+
+function parseCsvRow(line) {
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function matchMemberName(rawName, membersList) {
+  const clean = (rawName || '').trim();
+  if (!clean) return null;
+  const lower = clean.toLowerCase();
+  const exact = membersList.find(m => m.toLowerCase() === lower);
+  if (exact) return exact;
+  return membersList.find(m => lower.includes(m.toLowerCase()) || m.toLowerCase().includes(lower)) || null;
+}
+
+function computeSimpleHash(str) {
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
+  const lines = (csvText || '').split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 3) return null;
+
+  const rows = lines.map(parseCsvRow);
+  const headerRow = rows[0] || [];
+  const firstRowStr = headerRow.join(' ').toLowerCase();
+
+  // Detect New Sheet Layout (gid=113477995): Date | Item type | Name | Meal Expend | Other Expend | Other paid by
+  const isNewLayout = firstRowStr.includes('item type') || firstRowStr.includes('meal expend') || firstRowStr.includes('other expend');
+  const isLegacyLayout = firstRowStr.includes('bazar') || firstRowStr.includes('meal') || firstRowStr.includes('sadhin');
+
+  if (!isNewLayout && !isLegacyLayout) {
+    return null;
+  }
+
+  const daysInMonth = (() => {
+    if (monthId && monthId.includes('-')) {
+      const p = monthId.split('-');
+      const y = parseInt(p[0], 10);
+      const m = parseInt(p[1], 10);
+      if (y && m) return new Date(y, m, 0).getDate();
+    }
+    return 30;
+  })();
+
+  const cleanMonthWord = (monthLabelForDate || 'November').split(' ')[0];
+
+  if (isNewLayout) {
+    const findCol = (pattern, fallback) => {
+      const idx = headerRow.findIndex(h => pattern.test((h || '').toLowerCase()));
+      return idx !== -1 ? idx : fallback;
+    };
+
+    const dateCol = findCol(/^date$/, 0);
+    const typeCol = findCol(/item\s*type/, 1);
+    const nameCol = findCol(/^name$/, 2);
+    const mealExpendCol = findCol(/meal\s*expend/, 3);
+    const otherExpendCol = findCol(/other\s*expend/, 4);
+    const otherPaidByCol = findCol(/other\s*paid\s*by/, 5);
+    const depositCol = findCol(/^deposit$/, 17);
+
+    let depositNameCol = Math.max(0, depositCol - 2);
+    for (let c = Math.max(0, depositCol - 3); c < depositCol; c++) {
+      if (rows[1] && rows[1][c] && !/^\d/.test(rows[1][c])) {
+        depositNameCol = c;
+        break;
+      }
+    }
+
+    // 1. Parse Members & Deposits from Deposit Summary Block
+    const parsedMembers = [];
+    const parsedDeposits = {};
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const rawName = (row[depositNameCol] || '').trim();
+      const lowerName = rawName.toLowerCase();
+      if (
+        lowerName === 'meal rate' ||
+        lowerName === 'cash' ||
+        lowerName === 'others cost' ||
+        lowerName === 'item' ||
+        lowerName === 'total'
+      ) {
+        break;
+      }
+      if (rawName) {
+        const cleanMember = rawName.replace(/\s+/g, ' ').trim();
+        if (!parsedMembers.includes(cleanMember)) {
+          parsedMembers.push(cleanMember);
+        }
+        parsedDeposits[cleanMember] = parseFloat(row[depositCol]) || 0;
+      }
+    }
+
+    // 2. Locate Meal Date Column (e.g. "1October") & Member Meal Columns
+    let mealDateCol = 8;
+    for (let c = otherPaidByCol + 1; c < depositNameCol; c++) {
+      const cell = (rows[1] && rows[1][c] ? rows[1][c] : '').trim();
+      if (/^\d+\s*[a-zA-Z]+/.test(cell)) {
+        mealDateCol = c;
+        break;
+      }
+    }
+
+    const mealColMap = [];
+    for (let c = mealDateCol + 1; c < depositNameCol; c++) {
+      const rawHeader = (headerRow[c] || '').trim();
+      if (!rawHeader) continue;
+      let matched = matchMemberName(rawHeader, parsedMembers);
+      if (!matched) {
+        matched = rawHeader.replace(/meal\s*-\s*cost\s*\d*/ig, '').trim();
+        if (matched && !parsedMembers.includes(matched)) {
+          parsedMembers.push(matched);
+          if (parsedDeposits[matched] === undefined) parsedDeposits[matched] = 0;
         }
       }
-      result.push(cur.trim());
-      return result;
+      if (matched) {
+        mealColMap.push({ colIndex: c, memberName: matched });
+      }
     }
 
-    const rows = lines.map(parseCsvRow);
-    const firstRowStr = rows[0].join(' ').toLowerCase();
+    const members = parsedMembers.length > 0 ? parsedMembers : ['Sadhin', 'Tanzid', 'Akhirul', 'Tusher', 'Imam'];
 
-    // Verify it's a meal sheet tab (has 'bazar' or 'meal' or 'sadhin')
-    if (!firstRowStr.includes('meal') && !firstRowStr.includes('sadhin') && !firstRowStr.includes('bazar')) {
-      if (!silent) showToast('শিটে এই মাসের ডেটা পাওয়া যায়নি');
-      return;
+    // 3. Parse Daily Meals (using sequential non-empty mealDateCol rows so spacer rows don't shift days)
+    const parsedMeals = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      parsedMeals[d] = {};
+      members.forEach(m => { parsedMeals[d][m] = 0; });
     }
 
-    // Parse deposits (Col 10 = Member, Col 12 = Amount)
-    const members = ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
-    const newDeposits = { ...state.deposits };
-    const newMeals = { ...state.meals };
-    const newBazar = [];
-    let bazarIdCounter = 1;
+    let mealDayCounter = 0;
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const mealDateCell = (row[mealDateCol] || '').trim();
+      if (!mealDateCell) continue;
+      mealDayCounter++;
+      if (mealDayCounter > daysInMonth) break;
+
+      mealColMap.forEach(({ colIndex, memberName }) => {
+        parsedMeals[mealDayCounter][memberName] = parseFloat(row[colIndex]) || 0;
+      });
+    }
+
+    // 4. Parse Bazar (Meals) & Shared Items (Others)
+    const parsedBazar = [];
+    const parsedSharedItems = [];
+    let lastExpenseDay = 1;
+    let bazarCounter = 1;
+    let sharedCounter = 1;
 
     for (let r = 1; r < rows.length; r++) {
-      const row = rows[r];
-      const dayNum = parseInt(row[0], 10);
-      const itemDesc = (row[1] || '').trim();
-      const amount = parseFloat(row[2]) || 0;
+      const row = rows[r] || [];
+      const itemDesc = (row[nameCol] || '').trim();
+      if (!itemDesc || itemDesc.toLowerCase().includes('total')) continue;
 
-      // Bazar
-      if (amount > 0 && itemDesc && !itemDesc.toLowerCase().includes('total')) {
-        let shopper = 'Sadhin';
-        if (itemDesc.toLowerCase().includes('tanzid')) shopper = 'Tanzid';
-        else if (itemDesc.toLowerCase().includes('akhirul')) shopper = 'Akhirul';
-        else if (itemDesc.toLowerCase().includes('imam')) shopper = 'Imam';
+      const rawDay = parseInt(row[dateCol], 10);
+      if (rawDay >= 1 && rawDay <= 31) lastExpenseDay = rawDay;
+      const effectiveDay = Math.min(daysInMonth, Math.max(1, rawDay || lastExpenseDay));
+      const dateStr = `${effectiveDay} ${cleanMonthWord}`;
 
-        newBazar.push({
-          id: bazarIdCounter++,
+      const itemType = (row[typeCol] || '').trim().toLowerCase();
+      const mealAmt = parseFloat(row[mealExpendCol]) || 0;
+      const otherAmt = parseFloat(row[otherExpendCol]) || 0;
+      const paidByRaw = (row[otherPaidByCol] || '').trim();
+
+      if (itemType.includes('other') || (otherAmt > 0 && mealAmt === 0)) {
+        const amt = otherAmt || mealAmt;
+        if (amt > 0) {
+          const buyer = matchMemberName(paidByRaw, members) || paidByRaw || 'মেস';
+          parsedSharedItems.push({
+            id: sharedCounter++,
+            name: itemDesc,
+            price: amt,
+            buyer,
+            date: dateStr
+          });
+        }
+      } else if (mealAmt > 0) {
+        const shopper = matchMemberName(itemDesc, members) || 'মেস ফান্ড';
+        parsedBazar.push({
+          id: bazarCounter++,
           shopper,
           item: itemDesc,
-          amount,
-          date: (dayNum ? dayNum + ' ' : '') + (state.month || 'October')
+          amount: mealAmt,
+          date: dateStr,
+          category: 'food'
         });
       }
+    }
 
-      // Meals: Col 5=Sadhin, Col 6=Tanzid, Col 7=Akhirul, Col 8=Imam
-      if (dayNum >= 1 && dayNum <= 31) {
-        if (!newMeals[dayNum]) newMeals[dayNum] = {};
-        newMeals[dayNum]['Sadhin'] = parseFloat(row[5]) || 0;
-        newMeals[dayNum]['Tanzid'] = parseFloat(row[6]) || 0;
-        newMeals[dayNum]['Akhirul'] = parseFloat(row[7]) || 0;
-        newMeals[dayNum]['Imam'] = parseFloat(row[8]) || 0;
-      }
-
-      // Deposits
-      const mName = (row[10] || '').trim();
-      const depAmt = parseFloat(row[12]) || 0;
-      if (members.includes(mName) && depAmt > 0) {
-        newDeposits[mName] = depAmt;
+    // 5. Parse Others Cost / Fixed Bills & Member Bill Statuses
+    const parsedFixedBills = [];
+    const billTracker = {};
+    let billHeaderRowIdx = -1;
+    for (let r = 1; r < rows.length; r++) {
+      const cell = (rows[r] && rows[r][depositNameCol] ? rows[r][depositNameCol] : '').trim().toLowerCase();
+      if (cell === 'item') {
+        billHeaderRowIdx = r;
+        break;
       }
     }
 
-    // Apply updates if valid bazar found
-    if (newBazar.length > 0) {
-      state.bazar = newBazar;
-      state.meals = newMeals;
-      state.deposits = newDeposits;
-      saveState();
-      renderAll();
-      if (!silent) showToast('✅ গুগল শিট থেকে সফলভাবে লাইভ সিঙ্ক সম্পন্ন হয়েছে!');
+    if (billHeaderRowIdx !== -1) {
+      const billHeaderRow = rows[billHeaderRowIdx] || [];
+      const statusCols = [];
+      for (let c = depositNameCol + 3; c < billHeaderRow.length; c++) {
+        const hName = (billHeaderRow[c] || '').trim();
+        if (!hName) continue;
+        const matched = matchMemberName(hName, members) || hName;
+        statusCols.push({ colIndex: c, memberName: matched });
+        billTracker[matched] = { applicable: 0, paid: 0 };
+      }
+
+      const memberMealTotals = {};
+      members.forEach(m => {
+        memberMealTotals[m] = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+          memberMealTotals[m] += Number(parsedMeals[d][m]) || 0;
+        }
+      });
+
+      const rawBillRows = [];
+      for (let r = billHeaderRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const bName = (row[depositNameCol] || '').trim();
+        if (!bName || bName.toLowerCase() === 'total') break;
+        const totalAmt = parseFloat(row[depositNameCol + 1]) || 0;
+        const perHeadAmt = parseFloat(row[depositNameCol + 2]) || 0;
+        if (totalAmt <= 0) continue;
+        rawBillRows.push({ row, bName, totalAmt, perHeadAmt });
+      }
+
+      const membersNeverPaidAnyBill = new Set(
+        statusCols
+          .filter(sc => rawBillRows.every(rb => !String(rb.row[sc.colIndex] || '').trim()))
+          .map(sc => sc.memberName)
+      );
+
+      rawBillRows.forEach((rb, idx) => {
+        const { row, bName, totalAmt, perHeadAmt } = rb;
+        const splitCount = perHeadAmt > 0
+          ? Math.max(1, Math.min(members.length, Math.round(totalAmt / perHeadAmt)))
+          : members.length;
+
+        const lowerTitle = bName.toLowerCase();
+        const isBua = lowerTitle.includes('bua') || lowerTitle.includes('বুয়া') || lowerTitle.includes('খালা') || lowerTitle.includes('cook');
+
+        const excludedMembers = [];
+        if (splitCount < members.length) {
+          members.forEach(m => {
+            if (excludedMembers.length < (members.length - splitCount)) {
+              if ((memberMealTotals[m] || 0) === 0 && (parsedDeposits[m] || 0) === 0 && membersNeverPaidAnyBill.has(m)) {
+                excludedMembers.push(m);
+              }
+            }
+          });
+          if (isBua && members.includes('Imam') && !excludedMembers.includes('Imam') && excludedMembers.length < (members.length - splitCount)) {
+            excludedMembers.push('Imam');
+          }
+          statusCols.forEach(sc => {
+            if (excludedMembers.length < (members.length - splitCount)) {
+              const cellVal = String(row[sc.colIndex] || '').trim().toLowerCase();
+              if (!cellVal && !excludedMembers.includes(sc.memberName)) {
+                excludedMembers.push(sc.memberName);
+              }
+            }
+          });
+        }
+
+        let friendlyTitle = bName;
+        if (lowerTitle === 'house rent') friendlyTitle = 'House Rent (বাসা ভাড়া)';
+        else if (lowerTitle === 'wifi') friendlyTitle = 'Wifi Bill (ইন্টারনেট)';
+        else if (lowerTitle === 'bua') friendlyTitle = 'Bua Bill (খালা বিল)';
+
+        const activeIncludedCount = members.length - excludedMembers.length;
+        const noteText = excludedMembers.length > 0
+          ? `${activeIncludedCount} জনের ভাগ (${excludedMembers.join(', ')} বাদে)`
+          : `${splitCount} জনের সমান ভাগ`;
+
+        let allStatusesPaid = statusCols.length > 0;
+        statusCols.forEach(sc => {
+          if (excludedMembers.includes(sc.memberName)) return;
+          const cellVal = String(row[sc.colIndex] || '').trim().toLowerCase();
+          billTracker[sc.memberName].applicable++;
+          if (cellVal === 'paid') {
+            billTracker[sc.memberName].paid++;
+          } else {
+            allStatusesPaid = false;
+          }
+        });
+
+        parsedFixedBills.push({
+          id: 100 + idx,
+          title: friendlyTitle,
+          amount: totalAmt,
+          splitCount,
+          excludedMembers,
+          status: allStatusesPaid ? 'Paid' : 'Pending',
+          note: noteText
+        });
+      });
     }
+
+    const parsedMemberBillStatus = {};
+    Object.keys(billTracker).forEach(m => {
+      const tr = billTracker[m];
+      if (tr.applicable > 0) {
+        parsedMemberBillStatus[m] = tr.paid >= tr.applicable ? 'Paid' : 'Pending';
+      }
+    });
+
+    const parsedDepositHistory = members
+      .filter(m => (parsedDeposits[m] || 0) > 0)
+      .map((m, idx) => ({
+        id: `gs-dep-${idx + 1}-${m}`,
+        member: m,
+        amount: parsedDeposits[m],
+        date: `1 ${cleanMonthWord} ${(monthId || '2026-11').split('-')[0]}`,
+        note: 'Google Sheet থেকে সিঙ্ক'
+      }));
+
+    return {
+      layout: 'v2',
+      members,
+      deposits: parsedDeposits,
+      depositHistory: parsedDepositHistory,
+      meals: parsedMeals,
+      bazar: parsedBazar,
+      sharedItems: parsedSharedItems,
+      fixedBills: parsedFixedBills,
+      memberBillStatus: parsedMemberBillStatus
+    };
+  }
+
+  // Legacy Sheet Layout (e.g. October tab: Bazar | Name | Expend)
+  const legacyMembers = ['Sadhin', 'Tanzid', 'Akhirul', 'Imam'];
+  const newDeposits = {};
+  legacyMembers.forEach(m => { newDeposits[m] = 0; });
+  const newMeals = {};
+  for (let d = 1; d <= daysInMonth; d++) {
+    newMeals[d] = {};
+    legacyMembers.forEach(m => { newMeals[d][m] = 0; });
+  }
+  const newBazar = [];
+  let bazarIdCounter = 1;
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const dayNum = parseInt(row[0], 10);
+    const itemDesc = (row[1] || '').trim();
+    const amount = parseFloat(row[2]) || 0;
+
+    if (amount > 0 && itemDesc && !itemDesc.toLowerCase().includes('total')) {
+      const shopper = matchMemberName(itemDesc, legacyMembers) || 'Sadhin';
+      newBazar.push({
+        id: bazarIdCounter++,
+        shopper,
+        item: itemDesc,
+        amount,
+        date: (dayNum ? dayNum + ' ' : '') + cleanMonthWord,
+        category: 'food'
+      });
+    }
+
+    if (dayNum >= 1 && dayNum <= daysInMonth) {
+      newMeals[dayNum]['Sadhin'] = parseFloat(row[5]) || 0;
+      newMeals[dayNum]['Tanzid'] = parseFloat(row[6]) || 0;
+      newMeals[dayNum]['Akhirul'] = parseFloat(row[7]) || 0;
+      newMeals[dayNum]['Imam'] = parseFloat(row[8]) || 0;
+    }
+
+    const mName = (row[10] || '').trim();
+    const depAmt = parseFloat(row[12]) || 0;
+    if (legacyMembers.includes(mName) && depAmt > 0) {
+      newDeposits[mName] = depAmt;
+    }
+  }
+
+  if (newBazar.length === 0) return null;
+
+  return {
+    layout: 'legacy',
+    members: legacyMembers,
+    deposits: newDeposits,
+    meals: newMeals,
+    bazar: newBazar
+  };
+}
+window.parseGoogleSheetCsv = parseGoogleSheetCsv;
+
+function updateSheetSyncStatusUI(syncState = 'idle', extraMsg = '') {
+  const pill = document.getElementById('gsheetSyncIndicator');
+  const dot = document.getElementById('gsheetStatusDot');
+  const text = document.getElementById('gsheetStatusText');
+  const barDot = document.getElementById('sheetBarDot');
+  const metaText = document.getElementById('sheetSyncMetaText');
+  const syncIcon = document.getElementById('quickSheetSyncIcon');
+  const modalBox = document.getElementById('gsheetModalStatusBox');
+
+  const target = getSheetTargetForMonth(currentMonthId);
+  const lastSyncStr = (state && state.sheetMeta && state.sheetMeta.lastSyncedAt)
+    ? new Date(state.sheetMeta.lastSyncedAt).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  if (syncState === 'syncing') {
+    if (dot) dot.className = 'status-dot syncing';
+    if (barDot) barDot.className = 'status-dot syncing';
+    if (text) text.textContent = 'সিঙ্ক হচ্ছে...';
+    if (syncIcon) syncIcon.classList.add('is-spinning');
+    if (metaText) metaText.textContent = 'Google Sheet থেকে সর্বশেষ তথ্য আনা হচ্ছে...';
+  } else if (syncState === 'error') {
+    if (dot) dot.className = 'status-dot offline';
+    if (barDot) barDot.className = 'status-dot offline';
+    if (text) text.textContent = 'সিঙ্ক ত্রুটি';
+    if (syncIcon) syncIcon.classList.remove('is-spinning');
+    if (metaText) metaText.textContent = extraMsg || 'Google Sheet কানেক্ট করা যায়নি (অফলাইন/নেটওয়ার্ক)';
+  } else {
+    if (syncIcon) syncIcon.classList.remove('is-spinning');
+    const isLinked = Boolean(target.gid);
+    if (dot) dot.className = `status-dot ${isLinked ? 'online' : 'offline'}`;
+    if (barDot) barDot.className = `status-dot ${isLinked ? 'online' : 'offline'}`;
+    if (text) text.textContent = isLinked ? 'শিট লাইভ' : 'শিট অফ';
+    if (metaText) {
+      if (extraMsg) {
+        metaText.textContent = extraMsg;
+      } else if (isLinked) {
+        const autoLabel = target.autoSync ? 'অটো-সিঙ্ক চালু' : 'ম্যানুয়াল সিঙ্ক';
+        const timeInfo = lastSyncStr ? ` • শেষ আপডেট: ${lastSyncStr}` : '';
+        metaText.textContent = `${autoLabel} (gid=${target.gid})${timeInfo}`;
+      } else {
+        metaText.textContent = 'এই মাসের জন্য কোনো Google Sheet GID যুক্ত নেই';
+      }
+    }
+  }
+
+  if (pill) {
+    pill.title = target.gid
+      ? `Google Sheet সিঙ্ক (gid=${target.gid})${lastSyncStr ? ' • শেষ: ' + lastSyncStr : ''}`
+      : 'Google Sheet লিংক সেট করুন';
+  }
+
+  if (modalBox) {
+    const mealsCount = (state && state.meals)
+      ? Object.values(state.meals).reduce((acc, dayObj) => acc + Object.values(dayObj || {}).reduce((s, v) => s + (Number(v) || 0), 0), 0)
+      : 0;
+    const bazarCount = (state && state.bazar) ? state.bazar.length : 0;
+    const sharedCount = (state && state.sharedItems) ? state.sharedItems.length : 0;
+    modalBox.innerHTML = `
+      <div><b>চলতি মাস:</b> ${state ? (state.monthBn || state.month) : currentMonthId}</div>
+      <div><b>লিংকড GID:</b> <code>${target.gid || 'সেট করা নেই'}</code></div>
+      <div><b>শেষ সিঙ্ক:</b> ${lastSyncStr || 'এখনো সিঙ্ক হয়নি'}</div>
+      <div><b>বর্তমান ডেটা:</b> ${state ? state.members.length : 0} জন সদস্য • ${mealsCount} মিল • ${bazarCount} বাজার • ${sharedCount} মেস সামগ্রী</div>
+    `;
+  }
+}
+window.updateSheetSyncStatusUI = updateSheetSyncStatusUI;
+
+window.syncFromGoogleSheetGlobal = async function(silent = false, forceApply = false) {
+  if (isSheetSyncing) return false;
+  const target = getSheetTargetForMonth(currentMonthId);
+  if (!target.gid && !target.sheetName) {
+    if (!silent) showToast('এই মাসের জন্য Google Sheet লিংক সেট করা নেই');
+    return false;
+  }
+
+  isSheetSyncing = true;
+  lastSheetSyncAttemptAt = Date.now();
+  updateSheetSyncStatusUI('syncing');
+
+  try {
+    const queryParam = target.gid
+      ? `gid=${encodeURIComponent(target.gid)}`
+      : `sheet=${encodeURIComponent(target.sheetName)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/gviz/tq?tqx=out:csv&${queryParam}&_t=${Date.now()}`;
+
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Sheet network response failed: ' + res.status);
+    const csv = await res.text();
+
+    const parsed = parseGoogleSheetCsv(csv, currentMonthId, state ? state.month : '');
+    if (!parsed) {
+      if (!silent) showToast('শিটে এই মাসের সঠিক ফরম্যাটের ডেটা পাওয়া যায়নি');
+      updateSheetSyncStatusUI('idle', 'শিটে ডেটা ফরম্যাট ম্যাচ করেনি');
+      return false;
+    }
+
+    const { layout, ...comparablePayload } = parsed;
+    const newHash = computeSimpleHash(JSON.stringify(comparablePayload));
+    const prevHash = state && state.sheetMeta ? state.sheetMeta.hash : null;
+
+    if (!forceApply && prevHash && prevHash === newHash) {
+      if (!state.sheetMeta) state.sheetMeta = {};
+      state.sheetMeta.lastSyncedAt = new Date().toISOString();
+      updateSheetSyncStatusUI('idle');
+      if (!silent) showToast('✅ Google Sheet-এ ডেটা ইতোমধ্যেই আপডেটেড আছে');
+      return true;
+    }
+
+    state.members = parsed.members;
+    state.meals = parsed.meals;
+    state.bazar = parsed.bazar;
+    state.deposits = parsed.deposits;
+
+    if (parsed.layout === 'v2') {
+      state.sharedItems = parsed.sharedItems;
+      state.depositHistory = parsed.depositHistory;
+      if (parsed.fixedBills && parsed.fixedBills.length > 0) {
+        state.fixedBills = parsed.fixedBills;
+      }
+      if (!state.memberBillStatus) state.memberBillStatus = {};
+      parsed.members.forEach(m => {
+        if (parsed.memberBillStatus && parsed.memberBillStatus[m]) {
+          state.memberBillStatus[m] = parsed.memberBillStatus[m];
+        } else if (!state.memberBillStatus[m]) {
+          state.memberBillStatus[m] = 'Pending';
+        }
+      });
+      if (!state.memberSharedStatus) state.memberSharedStatus = {};
+      parsed.members.forEach(m => {
+        if (!state.memberSharedStatus[m]) state.memberSharedStatus[m] = 'Pending';
+      });
+    }
+
+    state.sheetMeta = {
+      spreadsheetId: target.spreadsheetId,
+      gid: target.gid || '',
+      hash: newHash,
+      lastSyncedAt: new Date().toISOString()
+    };
+
+    saveStateLocalOnly();
+    if (typeof pushStateToFirebase === 'function') {
+      pushStateToFirebase(state, currentMonthId, true);
+    }
+    renderAll();
+    updateSheetSyncStatusUI('idle');
+
+    const totalMealsCount = Object.values(parsed.meals || {}).reduce(
+      (sum, dObj) => sum + Object.values(dObj || {}).reduce((s, v) => s + (Number(v) || 0), 0),
+      0
+    );
+    const totalBazarAmt = (parsed.bazar || []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
+    if (!silent || prevHash !== newHash) {
+      showToast(`🔄 Google Sheet সিঙ্কড: ${totalMealsCount} মিল • ৳${totalBazarAmt.toLocaleString()} বাজার`);
+    }
+    return true;
   } catch (err) {
     console.warn('Google Sheet Sync note:', err);
+    updateSheetSyncStatusUI('error');
     if (!silent) showToast('গুগল শিট সিঙ্ক করা সম্ভব হয়নি');
+    return false;
+  } finally {
+    isSheetSyncing = false;
   }
 };
+
+function maybeAutoSyncGoogleSheet(forceCheck = false) {
+  const target = getSheetTargetForMonth(currentMonthId);
+  if (!target.autoSync || !target.gid) return;
+  if (currentMonthId === '2026-10' && !getGsheetConfig().monthGids['2026-10-auto']) return;
+
+  const elapsed = Date.now() - lastSheetSyncAttemptAt;
+  if (!forceCheck && elapsed < 8000) return;
+  syncFromGoogleSheetGlobal(true, false);
+}
+window.maybeAutoSyncGoogleSheet = maybeAutoSyncGoogleSheet;
+
+function initGoogleSheetSyncEngine() {
+  updateSheetSyncStatusUI();
+
+  const quickBtn = document.getElementById('quickSheetSyncBtn');
+  if (quickBtn) {
+    quickBtn.addEventListener('click', () => syncFromGoogleSheetGlobal(false, true));
+  }
+
+  const pillBtn = document.getElementById('gsheetSyncIndicator');
+  const openModalBtn = document.getElementById('openGsheetModalBtn');
+  const modal = document.getElementById('gsheetModal');
+  const closeBtn = document.getElementById('closeGsheetModalBtn');
+  const form = document.getElementById('gsheetForm');
+  const syncNowModalBtn = document.getElementById('gsheetSyncNowModalBtn');
+  const urlInput = document.getElementById('gsheetUrlInput');
+  const autoToggle = document.getElementById('gsheetAutoSyncToggle');
+  const openLinkBtn = document.getElementById('gsheetOpenLinkBtn');
+
+  const openGsheetModal = () => {
+    const target = getSheetTargetForMonth(currentMonthId);
+    if (urlInput) {
+      urlInput.value = target.gid
+        ? `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit?gid=${target.gid}#gid=${target.gid}`
+        : `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit`;
+    }
+    if (autoToggle) autoToggle.checked = target.autoSync;
+    if (openLinkBtn && target.gid) {
+      openLinkBtn.href = `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit?gid=${target.gid}#gid=${target.gid}`;
+    }
+    updateSheetSyncStatusUI();
+    if (modal) modal.classList.add('open');
+  };
+  window.openGsheetModal = openGsheetModal;
+
+  if (pillBtn) pillBtn.addEventListener('click', openGsheetModal);
+  if (openModalBtn) openModalBtn.addEventListener('click', openGsheetModal);
+  if (closeBtn && modal) closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('open');
+    });
+  }
+
+  if (syncNowModalBtn) {
+    syncNowModalBtn.addEventListener('click', async () => {
+      await syncFromGoogleSheetGlobal(false, true);
+      updateSheetSyncStatusUI();
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const parsedInput = parseGoogleSheetInput(urlInput ? urlInput.value : '');
+      const cfg = getGsheetConfig();
+      cfg.spreadsheetId = parsedInput.spreadsheetId || GSHEET_SPREADSHEET_ID;
+      if (parsedInput.gid) {
+        cfg.monthGids[currentMonthId] = parsedInput.gid;
+      }
+      cfg.autoSync = autoToggle ? autoToggle.checked : true;
+      saveGsheetConfig(cfg);
+      if (modal) modal.classList.remove('open');
+      showToast('Google Sheet সেটিংস সেভ হয়েছে! সিঙ্ক হচ্ছে...');
+      await syncFromGoogleSheetGlobal(false, true);
+    });
+  }
+
+  // Initial background sync for active sheet-linked month (e.g. November gid=113477995)
+  setTimeout(() => {
+    maybeAutoSyncGoogleSheet(true);
+  }, 400);
+
+  if (gsheetAutoSyncTimer) clearInterval(gsheetAutoSyncTimer);
+  gsheetAutoSyncTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      maybeAutoSyncGoogleSheet(false);
+    }
+  }, GSHEET_AUTO_SYNC_INTERVAL_MS);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      maybeAutoSyncGoogleSheet(false);
+    }
+  });
+  window.addEventListener('focus', () => {
+    maybeAutoSyncGoogleSheet(false);
+  });
+}
+window.initGoogleSheetSyncEngine = initGoogleSheetSyncEngine;
