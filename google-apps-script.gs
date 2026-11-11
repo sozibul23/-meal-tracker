@@ -29,6 +29,11 @@ function doPost(e) {
     var rawBody = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
     var payload = JSON.parse(rawBody);
 
+    // Zero-Wipe Guard: never allow an empty/reset state to wipe the Google Sheet
+    if (isPayloadCompletelyEmpty_(payload) && !payload.allowEmptyWipe) {
+      return jsonResponse_({ ok: false, error: 'Blocked empty payload to protect Google Sheet data' });
+    }
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = findTargetSheet_(ss, payload.gid, payload.sheetName);
     if (!sheet) {
@@ -284,6 +289,28 @@ function extractDay_(dateStr) {
   }
   var m = s.match(/\b([1-9]|[12]\d|3[01])\b/);
   return m ? parseInt(m[1], 10) : 0;
+}
+
+function isPayloadCompletelyEmpty_(payload) {
+  if (!payload || typeof payload !== 'object') return true;
+  var bazarCount = Array.isArray(payload.bazar) ? payload.bazar.length : 0;
+  var sharedCount = Array.isArray(payload.sharedItems) ? payload.sharedItems.length : 0;
+  var totalMeals = 0;
+  if (payload.meals && typeof payload.meals === 'object') {
+    Object.keys(payload.meals).forEach(function(dayKey) {
+      var dayObj = payload.meals[dayKey] || {};
+      Object.keys(dayObj).forEach(function(m) {
+        totalMeals += Number(dayObj[m]) || 0;
+      });
+    });
+  }
+  var totalDeposits = 0;
+  if (payload.deposits && typeof payload.deposits === 'object') {
+    Object.keys(payload.deposits).forEach(function(m) {
+      totalDeposits += Number(payload.deposits[m]) || 0;
+    });
+  }
+  return bazarCount === 0 && sharedCount === 0 && totalMeals === 0 && totalDeposits === 0;
 }
 
 function jsonResponse_(obj) {

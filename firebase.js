@@ -191,6 +191,7 @@ function syncGsheetConfigToCloud(gsheetConfig) {
   if (!db || !isCloudConnected || !gsheetConfig) return;
   db.doc('mess_meta/gsheet').set({
     spreadsheetId: gsheetConfig.spreadsheetId || '',
+    syncMode: gsheetConfig.syncMode || 'sheet-only',
     autoSync: gsheetConfig.autoSync !== undefined ? Boolean(gsheetConfig.autoSync) : true,
     webhookUrl: gsheetConfig.webhookUrl || '',
     monthGids: gsheetConfig.monthGids || {},

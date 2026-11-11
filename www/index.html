@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.6.0">
+  <link rel="stylesheet" href="style.css?v=1.6.1">
 </head>
 <body>
 
@@ -1060,11 +1060,30 @@
             Google Sheet-এ কোনো মিল, বাজার, মেস সামগ্রী, জমা বা ভাড়া-বিল আপডেট করলে অ্যাপে স্বয়ংক্রিয়ভাবে সিঙ্ক হবে।
           </p>
           <div class="form-field" style="margin-top: 12px;">
+            <label style="margin-bottom:8px; display:block;">সিঙ্ক মোড বেছে নিন (ডাটা সুরক্ষা)</label>
+            <div class="sync-mode-options" id="gsheetSyncModeOptions">
+              <label class="sync-mode-card active" data-mode="sheet-only">
+                <input type="radio" name="gsheetSyncMode" value="sheet-only" class="sync-mode-radio" checked>
+                <div class="sync-mode-content">
+                  <div class="sync-mode-title">🔒 শুধু Google Sheet ফাইনাল (Safe Mode)</div>
+                  <div class="sync-mode-desc">শুধু Sheet থেকে App-এ ডাটা আসবে। App থেকে কখনোই Sheet ডিলিট বা পরিবর্তন হবে না।</div>
+                </div>
+              </label>
+              <label class="sync-mode-card" data-mode="two-way">
+                <input type="radio" name="gsheetSyncMode" value="two-way" class="sync-mode-radio">
+                <div class="sync-mode-content">
+                  <div class="sync-mode-title">⇄ Two-Way সিঙ্ক (App ⇄ Sheet)</div>
+                  <div class="sync-mode-desc">App-এ আপডেট করলে Sheet-এও যাবে (Zero-Wipe সুরক্ষা সহ: খালি ডাটা Sheet মুছবে না)।</div>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div class="form-field" style="margin-top: 12px;">
             <label for="gsheetUrlInput">চলতি মাসের Google Sheet লিংক বা GID</label>
             <input type="text" id="gsheetUrlInput" class="input mono" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=113477995" required>
             <span class="text-muted text-xs" style="display:block; margin-top:4px;">পূর্ণ লিংক অথবা শুধু GID (যেমন: 113477995) দিন।</span>
           </div>
-          <div class="form-field" style="margin-top: 10px;">
+          <div class="form-field" id="gsheetWebhookSection" style="margin-top: 10px; display: none;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
               <label for="gsheetWebhookInput" style="margin:0;">Apps Script Webhook URL (Two-Way: App ➔ Sheet)</label>
               <button type="button" class="btn btn-outline btn-sm" id="copyAppsScriptBtn" style="padding:3px 8px; font-size:0.72rem;">📋 স্ক্রিপ্ট কপি</button>
@@ -1109,8 +1128,8 @@
   <!-- Firebase Compat Scripts -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js?v=1.2.1"></script>
-  <script src="app.js?v=1.6.1"></script>
+  <script src="firebase.js?v=1.2.2"></script>
+  <script src="app.js?v=1.6.2"></script>
 
   <!-- Floating Bottom Mobile Navigation Dock (ToyCad Aesthetic) -->
   <nav class="floating-dock" id="floatingDock">

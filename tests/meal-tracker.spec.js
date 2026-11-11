@@ -266,9 +266,11 @@ test.describe('Meal Tracker Automated QA Test Suite', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
     });
 
-    // Configure Webhook URL via Google Sheet Settings Modal
+    // Configure Two-Way Mode + Webhook URL via Google Sheet Settings Modal
     await page.locator('#openGsheetModalBtn').click();
     await expect(page.locator('#gsheetModal')).toHaveClass(/open/);
+    await page.locator('.sync-mode-card[data-mode="two-way"]').click();
+    await expect(page.locator('#gsheetWebhookInput')).toBeVisible();
     await page.locator('#gsheetWebhookInput').fill('https://script.google.com/macros/s/test-webhook-id/exec');
     await page.locator('#gsheetForm button[type="submit"]').click();
     await expect(page.locator('#gsheetModal')).not.toHaveClass(/open/);
@@ -290,6 +292,72 @@ test.describe('Meal Tracker Automated QA Test Suite', () => {
     await expect.poll(() => capturedPayload, { timeout: 5000 }).not.toBeNull();
     expect(capturedPayload.gid).toBe('113477995');
     expect(capturedPayload.meals['1'].Sadhin).toBeGreaterThanOrEqual(1);
+  });
+
+  test('TC11: Safe Mode (Sheet Final) blocks Sheet pushes and restores Sheet on Reset', async ({ page }) => {
+    const sampleCsv = [
+      '"Date","Item type","Name ","Meal Expend","Other Expend","Other paid by","","","","Sadhin","Meal - Cost 2026 Tanzid","Akhirul","Tusher","Imam","","","","Deposit","Cost","Remain","","",""',
+      '"1","Meals","Mach, fulkopi","880","","","","","1October","2","1","2","","","","Sadhin","","2000","","","","",""',
+      '"2","Meals","murgi","590","","","","","2October","2","1","2","","","","Tanzid","","1500","","","","",""',
+      '"3","Others","vim","","30","Sadhin","","","3October","1","1","1","","","","Akhirul","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Others Cost","","","","","","",""',
+      '"","","","","","","","","","","","","","","","Item","","","","","Akhirul","Imam","Tusher"',
+      '"","","","","","","","","","","","","","","","House Rent","16000","4000","","","Paid","Paid",""'
+    ].join('\n');
+
+    await page.route('**/*docs.google.com/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      body: sampleCsv
+    }));
+
+    let pushCount = 0;
+    await page.route('**/*script.google.com/**', async route => {
+      pushCount++;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    // Sync initial 13 meals from Google Sheet
+    await page.locator('#quickSheetSyncBtn').click();
+    await expect(page.locator('#kpiRateFormula')).toContainText('13 মিল');
+
+    // Default Safe Mode pill
+    await expect(page.locator('#gsheetStatusText')).toHaveText('🔒 শিট ফাইনাল');
+
+    // Open modal, switch to two-way to enter a webhook, then switch back to sheet-only Safe Mode
+    await page.locator('#openGsheetModalBtn').click();
+    await page.locator('.sync-mode-card[data-mode="two-way"]').click();
+    await page.locator('#gsheetWebhookInput').fill('https://script.google.com/macros/s/test-webhook-id/exec');
+    await page.locator('.sync-mode-card[data-mode="sheet-only"]').click();
+    await expect(page.locator('#gsheetWebhookSection')).toBeHidden();
+    await page.locator('#gsheetForm button[type="submit"]').click();
+    await expect(page.locator('#gsheetStatusText')).toHaveText('🔒 শিট ফাইনাল');
+
+    // Admin edits meal (13 -> 14) & resets: neither should push to script.google.com, and reset restores Sheet's 13 meals
+    await page.evaluate(() => {
+      sessionStorage.setItem('MESS_ADMIN_LOGGED_IN', 'true');
+      window.isAdmin = true;
+      if (typeof updateAdminUI === 'function') updateAdminUI();
+      if (typeof renderAll === 'function') renderAll();
+      if (typeof switchTab === 'function') switchTab('meals');
+    });
+
+    await page.locator('#mealsBody tr .meal-stepper button.step-btn', { hasText: '+' }).first().click();
+    await expect(page.locator('#kpiRateFormula')).toContainText('14 মিল');
+    await page.waitForTimeout(1500);
+    expect(pushCount).toBe(0);
+
+    await page.evaluate(() => {
+      if (typeof switchTab === 'function') switchTab('users');
+    });
+    await expect(page.locator('#resetDataBtn')).toBeVisible();
+    page.once('dialog', dialog => dialog.accept('RESET'));
+    await page.locator('#resetDataBtn').click();
+    await page.evaluate(() => {
+      if (typeof switchTab === 'function') switchTab('dashboard');
+    });
+    await expect(page.locator('#kpiRateFormula')).toContainText('13 মিল');
+    expect(pushCount).toBe(0);
   });
 
 });

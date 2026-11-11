@@ -3315,27 +3315,37 @@ const setTodayBtn = document.getElementById('setTodayBazarDateBtn');
   // Print
   document.getElementById('printReportBtn').addEventListener('click', () => window.print());
 
-  // Reset to Google Sheet Default
-  document.getElementById('resetDataBtn').addEventListener('click', () => {
+  // Reset to Google Sheet Default (protects Sheet & restores Sheet data when linked)
+  document.getElementById('resetDataBtn').addEventListener('click', async () => {
     if (!isAdmin) {
       showToast('রিসেট করতে এডমিন লগইন প্রয়োজন');
       return;
     }
-    const confirmInput = prompt('⚠️ সতর্কতা: ডাটা রিসেট করলে বর্তমান মাসের সকল মিল, বাজার ও হিসাব মুছে যাবে!\n\nআপনি যদি নিশ্চিত হন, তবে নিচে RESET লিখে কনফার্ম করুন:');
+    const target = typeof getSheetTargetForMonth === 'function' ? getSheetTargetForMonth(currentMonthId) : null;
+    const hasLinkedSheet = Boolean(target && target.gid && currentMonthId !== '2026-10');
+    const promptMsg = hasLinkedSheet
+      ? '🔄 এই মাসটি Google Sheet-এর সাথে যুক্ত আছে। রিসেট করলে Google Sheet-এর সর্বশেষ মূল ডাটা থেকেই অ্যাপ রিস্টোর হবে (Sheet-এর কোনো ডাটা ডিলিট হবে না)।\n\nকনফার্ম করতে নিচে RESET লিখুন:'
+      : '⚠️ সতর্কতা: ডাটা রিসেট করলে বর্তমান মাসের সকল মিল, বাজার ও হিসাব মুছে যাবে!\n\nআপনি যদি নিশ্চিত হন, তবে নিচে RESET লিখে কনফার্ম করুন:';
+    const confirmInput = prompt(promptMsg);
     if (confirmInput !== 'RESET') {
       showToast('রিসেট বাতিল করা হয়েছে');
       return;
     }
-    if (true) {
-        if (currentMonthId === '2026-10') {
-          state = JSON.parse(JSON.stringify(INITIAL_DATA));
-        } else {
-          state = createFreshMonthState(currentMonthId);
-        }
-        saveState();
-        renderAll();
-        showToast('রিসেট সম্পন্ন হয়েছে!');
+    if (hasLinkedSheet && typeof syncFromGoogleSheetGlobal === 'function') {
+      const ok = await syncFromGoogleSheetGlobal(false, true);
+      if (ok) {
+        showToast('✅ Google Sheet থেকে মূল ডাটা রিস্টোর সম্পন্ন হয়েছে!');
       }
+      return;
+    }
+    if (currentMonthId === '2026-10') {
+      state = JSON.parse(JSON.stringify(INITIAL_DATA));
+    } else {
+      state = createFreshMonthState(currentMonthId);
+    }
+    saveState();
+    renderAll();
+    showToast('রিসেট সম্পন্ন হয়েছে!');
   });
 
   // Export
@@ -3817,7 +3827,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-11-v29';
+  const LATEST_BUILD = '2026-11-11-v30';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -4137,6 +4147,7 @@ function getGsheetConfig() {
   const defaults = {
     spreadsheetId: GSHEET_SPREADSHEET_ID,
     autoSync: true,
+    syncMode: 'sheet-only',
     webhookUrl: '',
     monthGids: { ...GSHEET_DEFAULT_MONTH_GIDS }
   };
@@ -4147,6 +4158,7 @@ function getGsheetConfig() {
       return {
         spreadsheetId: parsed.spreadsheetId || defaults.spreadsheetId,
         autoSync: parsed.autoSync !== undefined ? Boolean(parsed.autoSync) : true,
+        syncMode: parsed.syncMode === 'two-way' ? 'two-way' : 'sheet-only',
         webhookUrl: parsed.webhookUrl || '',
         monthGids: { ...defaults.monthGids, ...(parsed.monthGids || {}) }
       };
@@ -4161,6 +4173,7 @@ window.applyCloudGsheetConfig = function(cloudCfg) {
   const merged = {
     spreadsheetId: cloudCfg.spreadsheetId || localCfg.spreadsheetId,
     autoSync: cloudCfg.autoSync !== undefined ? Boolean(cloudCfg.autoSync) : localCfg.autoSync,
+    syncMode: cloudCfg.syncMode ? (cloudCfg.syncMode === 'two-way' ? 'two-way' : 'sheet-only') : localCfg.syncMode,
     webhookUrl: cloudCfg.webhookUrl !== undefined ? cloudCfg.webhookUrl : localCfg.webhookUrl,
     monthGids: { ...localCfg.monthGids, ...(cloudCfg.monthGids || {}) }
   };
@@ -4195,6 +4208,7 @@ function getSheetTargetForMonth(monthId) {
     gid,
     sheetName,
     autoSync: cfg.autoSync,
+    syncMode: cfg.syncMode === 'two-way' ? 'two-way' : 'sheet-only',
     webhookUrl: (cfg.webhookUrl || '').trim()
   };
 }
@@ -4662,15 +4676,15 @@ function updateSheetSyncStatusUI(syncState = 'idle', extraMsg = '') {
   } else {
     if (syncIcon) syncIcon.classList.remove('is-spinning');
     const isLinked = Boolean(target.gid);
-    const isTwoWay = Boolean(target.webhookUrl);
+    const isTwoWay = Boolean(target.syncMode === 'two-way' && target.webhookUrl);
     if (dot) dot.className = `status-dot ${isLinked ? 'online' : 'offline'}`;
     if (barDot) barDot.className = `status-dot ${isLinked ? 'online' : 'offline'}`;
-    if (text) text.textContent = isLinked ? (isTwoWay ? '2-Way লাইভ' : 'শিট লাইভ') : 'শিট অফ';
+    if (text) text.textContent = isLinked ? (isTwoWay ? '2-Way লাইভ' : '🔒 শিট ফাইনাল') : 'শিট অফ';
     if (metaText) {
       if (extraMsg) {
         metaText.textContent = extraMsg;
       } else if (isLinked) {
-        const modeLabel = isTwoWay ? 'Two-Way (App ⇄ Sheet)' : (target.autoSync ? 'অটো-সিঙ্ক (Sheet ➔ App)' : 'ম্যানুয়াল সিঙ্ক');
+        const modeLabel = isTwoWay ? 'Two-Way (App ⇄ Sheet)' : (target.autoSync ? 'Safe Mode (শুধু Sheet ➔ App)' : 'ম্যানুয়াল সিঙ্ক (Sheet ➔ App)');
         const timeInfo = lastSyncStr ? ` • শেষ আপডেট: ${lastSyncStr}` : '';
         metaText.textContent = `${modeLabel} • gid=${target.gid}${timeInfo}`;
       } else {
@@ -4691,9 +4705,11 @@ function updateSheetSyncStatusUI(syncState = 'idle', extraMsg = '') {
       : 0;
     const bazarCount = (state && state.bazar) ? state.bazar.length : 0;
     const sharedCount = (state && state.sharedItems) ? state.sharedItems.length : 0;
-    const modeBadge = target.webhookUrl
-      ? '<span style="color:var(--success);font-weight:700;">🟢 Two-Way Sync চালু (App ⇄ Sheet)</span>'
-      : '<span style="color:#facc15;font-weight:700;">🟡 One-Way Sync (শুধু Sheet ➔ App)</span>';
+    const modeBadge = target.syncMode === 'two-way'
+      ? (target.webhookUrl
+          ? '<span style="color:#38bdf8;font-weight:700;">⇄ Two-Way Sync চালু (App ⇄ Sheet • Zero-Wipe সুরক্ষা)</span>'
+          : '<span style="color:#facc15;font-weight:700;">⚠️ Two-Way নির্বাচিত (Webhook URL দিন)</span>')
+      : '<span style="color:var(--success);font-weight:700;">🔒 Safe Mode: শুধু Google Sheet ফাইনাল (Sheet ➔ App)</span>';
     modalBox.innerHTML = `
       <div><b>মোড:</b> ${modeBadge}</div>
       <div><b>চলতি মাস:</b> ${state ? (state.monthBn || state.month) : currentMonthId} • <b>GID:</b> <code>${target.gid || 'নেই'}</code></div>
@@ -4803,11 +4819,27 @@ window.syncFromGoogleSheetGlobal = async function(silent = false, forceApply = f
   }
 };
 
+function isStateCompletelyEmptyForSheet(targetState) {
+  if (!targetState) return true;
+  const mealsTotal = Object.values(targetState.meals || {}).reduce(
+    (sum, dObj) => sum + Object.values(dObj || {}).reduce((s, v) => s + (Number(v) || 0), 0),
+    0
+  );
+  const bazarCount = (targetState.bazar || []).length;
+  const sharedCount = (targetState.sharedItems || []).length;
+  const depTotal = Object.values(targetState.deposits || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+  return mealsTotal === 0 && bazarCount === 0 && sharedCount === 0 && depTotal === 0;
+}
+
 async function pushStateToGoogleSheet(targetState, monthIdOverride) {
   const mId = monthIdOverride || currentMonthId;
   const target = getSheetTargetForMonth(mId);
-  if (!target.webhookUrl || !target.gid || !targetState) return false;
+  if (target.syncMode !== 'two-way' || !target.webhookUrl || !target.gid || !targetState) return false;
   if (mId === '2026-10') return false;
+  if (isStateCompletelyEmptyForSheet(targetState)) {
+    console.warn('Blocked pushing completely empty state to protect Google Sheet data');
+    return false;
+  }
 
   isPushingToSheet = true;
   lastSheetPushAt = Date.now();
@@ -4889,7 +4921,8 @@ window.pushStateToGoogleSheet = pushStateToGoogleSheet;
 function schedulePushToGoogleSheet(targetState, monthIdOverride) {
   const mId = monthIdOverride || currentMonthId;
   const target = getSheetTargetForMonth(mId);
-  if (!target.webhookUrl || !target.gid || mId === '2026-10') return;
+  if (target.syncMode !== 'two-way' || !target.webhookUrl || !target.gid || mId === '2026-10') return;
+  if (isStateCompletelyEmptyForSheet(targetState)) return;
 
   lastSheetPushAt = Date.now();
   if (sheetPushDebounceTimer) clearTimeout(sheetPushDebounceTimer);
@@ -4928,9 +4961,31 @@ function initGoogleSheetSyncEngine() {
   const syncNowModalBtn = document.getElementById('gsheetSyncNowModalBtn');
   const urlInput = document.getElementById('gsheetUrlInput');
   const webhookInput = document.getElementById('gsheetWebhookInput');
+  const webhookSection = document.getElementById('gsheetWebhookSection');
+  const syncModeRadios = document.querySelectorAll('input[name="gsheetSyncMode"]');
+  const syncModeCards = document.querySelectorAll('.sync-mode-card');
   const copyScriptBtn = document.getElementById('copyAppsScriptBtn');
   const autoToggle = document.getElementById('gsheetAutoSyncToggle');
   const openLinkBtn = document.getElementById('gsheetOpenLinkBtn');
+
+  const applyModeSelectionUI = (mode) => {
+    const safeMode = mode === 'two-way' ? 'two-way' : 'sheet-only';
+    syncModeRadios.forEach(r => {
+      r.checked = (r.value === safeMode);
+    });
+    syncModeCards.forEach(card => {
+      card.classList.toggle('active', card.dataset.mode === safeMode);
+    });
+    if (webhookSection) {
+      webhookSection.style.display = safeMode === 'two-way' ? 'block' : 'none';
+    }
+  };
+
+  syncModeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      applyModeSelectionUI(e.target.value);
+    });
+  });
 
   const openGsheetModal = () => {
     const target = getSheetTargetForMonth(currentMonthId);
@@ -4940,6 +4995,7 @@ function initGoogleSheetSyncEngine() {
         : `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit`;
     }
     if (webhookInput) webhookInput.value = target.webhookUrl || '';
+    applyModeSelectionUI(target.syncMode || 'sheet-only');
     if (autoToggle) autoToggle.checked = target.autoSync;
     if (openLinkBtn && target.gid) {
       openLinkBtn.href = `https://docs.google.com/spreadsheets/d/${target.spreadsheetId}/edit?gid=${target.gid}#gid=${target.gid}`;
@@ -4984,6 +5040,8 @@ function initGoogleSheetSyncEngine() {
       e.preventDefault();
       const parsedInput = parseGoogleSheetInput(urlInput ? urlInput.value : '');
       const cfg = getGsheetConfig();
+      const selectedRadio = document.querySelector('input[name="gsheetSyncMode"]:checked');
+      cfg.syncMode = (selectedRadio && selectedRadio.value === 'two-way') ? 'two-way' : 'sheet-only';
       cfg.spreadsheetId = parsedInput.spreadsheetId || GSHEET_SPREADSHEET_ID;
       if (parsedInput.gid) {
         cfg.monthGids[currentMonthId] = parsedInput.gid;
@@ -4994,8 +5052,15 @@ function initGoogleSheetSyncEngine() {
       if (typeof syncGsheetConfigToCloud === 'function') {
         syncGsheetConfigToCloud(cfg);
       }
+      updateSheetSyncStatusUI();
       if (modal) modal.classList.remove('open');
-      showToast(cfg.webhookUrl ? '✅ Two-Way Sync সেটিংস সেভ হয়েছে!' : 'Google Sheet সেটিংস সেভ হয়েছে! সিঙ্ক হচ্ছে...');
+      if (cfg.syncMode === 'two-way') {
+        showToast(cfg.webhookUrl
+          ? '✅ Two-Way Sync (App ⇄ Sheet) সেভ হয়েছে!'
+          : '⚠️ Two-Way Sync নির্বাচিত, কিন্তু Apps Script Webhook URL খালি রয়েছে');
+      } else {
+        showToast('🔒 Safe Mode (শুধু Google Sheet ফাইনাল) সেভ হয়েছে! সিঙ্ক হচ্ছে...');
+      }
       await syncFromGoogleSheetGlobal(false, true);
     });
   }
