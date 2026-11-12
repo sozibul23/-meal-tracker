@@ -360,4 +360,40 @@ test.describe('Meal Tracker Automated QA Test Suite', () => {
     expect(pushCount).toBe(0);
   });
 
+  test('TC12: Custom per-member House Rent & Utility shares parsed directly from Google Sheet', async ({ page }) => {
+    const customRentCsv = [
+      '"Date","Item type","Name ","Meal Expend","Other Expend","Other paid by","","","","Sadhin","Tanzid","Akhirul","Tusher","Imam","","","","Deposit","Cost","Remain","","",""',
+      '"1","Meals","Mach","500","","","","","1December","1","1","1","1","1","","Sadhin","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Tanzid","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Akhirul","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Imam","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Tusher","","2000","","","","",""',
+      '"","","","","","","","","","","","","","","","Others Cost","","","","","","",""',
+      '"","","","","","","","","","","","","","","","Item","","Avg","Sadhin","Tanzid","Akhirul","Imam","Tusher"',
+      '"","","","","","","","","","","","","","","","House Rent","17000","","3700","3700","3700","3700","2200"',
+      '"","","","","","","","","","","","","","","","Wifi","690","138","138","138","138","138","138"',
+      '"","","","","","","","","","","","","","","","Maintenance","","0","","","","",""',
+      '"","","","","","","","","","","","","","","","Bua","2400","600","600","600","600","","600"'
+    ].join('\n');
+
+    await page.route('**/*docs.google.com/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      body: customRentCsv
+    }));
+
+    await page.locator('#quickSheetSyncBtn').click();
+    await page.evaluate(() => {
+      if (typeof switchTab === 'function') switchTab('utilities');
+    });
+
+    const matrix = page.locator('#memberUtilityMatrixTable');
+    await expect(matrix).toBeVisible();
+    await expect(matrix.locator('tbody tr', { hasText: 'Sadhin' })).toContainText('3,700');
+    await expect(matrix.locator('tbody tr', { hasText: 'Sadhin' })).toContainText('4,438');
+    await expect(matrix.locator('tbody tr', { hasText: 'Imam' })).toContainText('3,838');
+    await expect(matrix.locator('tbody tr', { hasText: 'Tusher' })).toContainText('2,200');
+    await expect(matrix.locator('tbody tr', { hasText: 'Tusher' })).toContainText('2,938');
+  });
+
 });

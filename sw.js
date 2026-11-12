@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meal-tracker-v1.6.2';
+const CACHE_NAME = 'meal-tracker-v1.6.3';
 const ASSETS = [
   './',
   './firebase.js',

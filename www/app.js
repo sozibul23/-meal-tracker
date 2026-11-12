@@ -927,6 +927,9 @@ function formatBDT(amount,
 
 function isMemberExcludedFromBill(bill, memberName, totalMembersCount) {
   if (!bill || !memberName) return false;
+  if (bill.customShares && typeof bill.customShares === 'object' && Object.prototype.hasOwnProperty.call(bill.customShares, memberName)) {
+    return (Number(bill.customShares[memberName]) || 0) <= 0;
+  }
   if (Array.isArray(bill.excludedMembers)) {
     return bill.excludedMembers.includes(memberName);
   }
@@ -940,6 +943,16 @@ function isMemberExcludedFromBill(bill, memberName, totalMembersCount) {
   if (bill.note && bill.note.includes('৩ জনের') && memberName === 'Imam') return true;
   if (bill.splitCount < totalMembersCount && memberName === 'Imam' && isBua) return true;
   return false;
+}
+
+function getMemberBillShare(bill, memberName, totalMembersCount) {
+  if (!bill || !memberName) return 0;
+  if (bill.customShares && typeof bill.customShares === 'object' && Object.prototype.hasOwnProperty.call(bill.customShares, memberName)) {
+    const customVal = Number(bill.customShares[memberName]);
+    return Number.isFinite(customVal) ? Math.max(0, customVal) : 0;
+  }
+  const isExcluded = isMemberExcludedFromBill(bill, memberName, totalMembersCount);
+  return isExcluded ? 0 : (Number(bill.amount) / (bill.splitCount || totalMembersCount || 1));
 }
 
 // Calculate Metrics (Fund-based calculation)
@@ -1024,9 +1037,7 @@ function calculateMetrics() {
     // Calculate this member's share across fixed utility bills
     let utilityTotal = 0;
     (state.fixedBills || []).forEach(b => {
-      const isExcluded = isMemberExcludedFromBill(b, name, state.members.length);
-      const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
-      utilityTotal += share;
+      utilityTotal += getMemberBillShare(b, name, state.members.length);
     });
 
     return {
@@ -1617,7 +1628,7 @@ function renderUtilities(metrics) {
   state.fixedBills.forEach(b => {
     state.members.forEach(m => {
       const isExcluded = isMemberExcludedFromBill(b, m, state.members.length);
-      const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+      const share = getMemberBillShare(b, m, state.members.length);
       memberBills[m].shares[b.id] = {
         amount: share,
         isExcluded
@@ -1750,7 +1761,7 @@ function renderUtilities(metrics) {
                 ৳${Number(b.amount).toLocaleString()}
               </div>
               <div class="text-muted text-xs" style="font-weight: normal; margin-top: 2px;">
-                ${b.splitCount || state.members.length} জনের ভাগ
+                ${b.customShares ? (b.note || 'শিট অনুযায়ী ভাগ') : ((b.splitCount || state.members.length) + ' জনের ভাগ')}
               </div>
               ${isAdmin ? `
                 <div style="display: inline-flex; gap: 4px; margin-top: 6px; align-items: center; justify-content: flex-end;">
@@ -2201,7 +2212,8 @@ function generateWhatsAppSummary(metrics, mode = currentWaMode) {
     });
     msg += `• মাসিক স্থায়ী বিল (ভাড়া ও ইউটিলিটি):\n`;
     (state.fixedBills || []).forEach(b => {
-      msg += `  ▫️ ${b.title}: ৳${Number(b.amount).toLocaleString()} (${b.splitCount || state.members.length} জনের ভাগ)\n`;
+      const splitLabel = b.customShares ? (b.note || 'শিট অনুযায়ী ভাগ') : (`${b.splitCount || state.members.length} জনের ভাগ`);
+      msg += `  ▫️ ${b.title}: ৳${Number(b.amount).toLocaleString()} (${splitLabel})\n`;
     });
     msg += `• সদস্যভিত্তিক বিল অংশ:\n`;
     metrics.memberSummaries.forEach(m => {
@@ -3827,7 +3839,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-11-v30';
+  const LATEST_BUILD = '2026-11-12-v31';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -4049,10 +4061,8 @@ window.copyMemberBillSlip = function(memberName) {
 
   let total = 0;
   const lines = state.fixedBills.map(b => {
-    const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
-                       (b.splitCount < state.members.length && m === 'Imam') ||
-                       (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
-    const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+    const isExcluded = isMemberExcludedFromBill(b, m, state.members.length);
+    const share = getMemberBillShare(b, m, state.members.length);
     total += share;
     const titleClean = b.title.split('(')[0].trim();
     if (isExcluded) return `• ${titleClean}: ৳০ (মুক্ত)`;
@@ -4088,10 +4098,8 @@ window.copyWhatsAppUtilityNotice = function() {
   const memberLines = state.members.map(m => {
     let mTotal = 0;
     const details = state.fixedBills.map(b => {
-      const isExcluded = (b.note && b.note.includes('৩ জনের') && m === 'Imam') ||
-                         (b.splitCount < state.members.length && m === 'Imam') ||
-                         (b.title && (b.title.includes('বুয়া') || b.title.includes('খালা') || b.title.toLowerCase().includes('bua') || b.title.toLowerCase().includes('cook')) && m === 'Imam');
-      const share = isExcluded ? 0 : (Number(b.amount) / (b.splitCount || state.members.length || 1));
+      const isExcluded = isMemberExcludedFromBill(b, m, state.members.length);
+      const share = getMemberBillShare(b, m, state.members.length);
       mTotal += share;
       const titleClean = b.title.split('(')[0].trim();
       return isExcluded ? `${titleClean} ৳০` : `${titleClean} ৳${Math.round(share)}`;
@@ -4472,13 +4480,25 @@ function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
         }
       });
 
+      const parseNumericBillCell = (raw) => {
+        const cleaned = String(raw || '').replace(/[৳,\s]/g, '').trim();
+        if (!cleaned || !/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
+        const num = parseFloat(cleaned);
+        return Number.isFinite(num) ? num : null;
+      };
+
       const rawBillRows = [];
       for (let r = billHeaderRowIdx + 1; r < rows.length; r++) {
         const row = rows[r] || [];
         const bName = (row[depositNameCol] || '').trim();
         if (!bName || bName.toLowerCase() === 'total') break;
-        const totalAmt = parseFloat(row[depositNameCol + 1]) || 0;
-        const perHeadAmt = parseFloat(row[depositNameCol + 2]) || 0;
+        let totalAmt = parseFloat(String(row[depositNameCol + 1] || '').replace(/[৳,\s]/g, '')) || 0;
+        const perHeadAmt = parseFloat(String(row[depositNameCol + 2] || '').replace(/[৳,\s]/g, '')) || 0;
+        const numericCellsSum = statusCols.reduce((sum, sc) => {
+          const val = parseNumericBillCell(row[sc.colIndex]);
+          return sum + (val !== null && val > 0 ? val : 0);
+        }, 0);
+        if (totalAmt <= 0 && numericCellsSum > 0) totalAmt = numericCellsSum;
         if (totalAmt <= 0) continue;
         rawBillRows.push({ row, bName, totalAmt, perHeadAmt });
       }
@@ -4491,31 +4511,74 @@ function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
 
       rawBillRows.forEach((rb, idx) => {
         const { row, bName, totalAmt, perHeadAmt } = rb;
-        const splitCount = perHeadAmt > 0
-          ? Math.max(1, Math.min(members.length, Math.round(totalAmt / perHeadAmt)))
-          : members.length;
-
         const lowerTitle = bName.toLowerCase();
         const isBua = lowerTitle.includes('bua') || lowerTitle.includes('বুয়া') || lowerTitle.includes('খালা') || lowerTitle.includes('cook');
 
-        const excludedMembers = [];
-        if (splitCount < members.length) {
-          members.forEach(m => {
-            if (excludedMembers.length < (members.length - splitCount)) {
-              if ((memberMealTotals[m] || 0) === 0 && (parsedDeposits[m] || 0) === 0 && membersNeverPaidAnyBill.has(m)) {
-                excludedMembers.push(m);
-              }
-            }
-          });
-          if (isBua && members.includes('Imam') && !excludedMembers.includes('Imam') && excludedMembers.length < (members.length - splitCount)) {
-            excludedMembers.push('Imam');
-          }
+        const hasAnyNumericCell = statusCols.some(sc => parseNumericBillCell(row[sc.colIndex]) !== null);
+        let splitCount = members.length;
+        let excludedMembers = [];
+        let customShares = null;
+        let noteText = '';
+        let allStatusesPaid = statusCols.length > 0;
+
+        if (hasAnyNumericCell) {
+          customShares = {};
+          members.forEach(m => { customShares[m] = 0; });
           statusCols.forEach(sc => {
-            if (excludedMembers.length < (members.length - splitCount)) {
-              const cellVal = String(row[sc.colIndex] || '').trim().toLowerCase();
-              if (!cellVal && !excludedMembers.includes(sc.memberName)) {
-                excludedMembers.push(sc.memberName);
+            const val = parseNumericBillCell(row[sc.colIndex]);
+            customShares[sc.memberName] = val !== null ? Math.max(0, val) : 0;
+          });
+          excludedMembers = members.filter(m => (customShares[m] || 0) <= 0);
+          const activeAmounts = members.map(m => customShares[m] || 0).filter(v => v > 0);
+          splitCount = Math.max(1, activeAmounts.length);
+          const allActiveEqual = activeAmounts.length > 0 && activeAmounts.every(v => Math.abs(v - activeAmounts[0]) < 0.01);
+          if (!allActiveEqual) {
+            noteText = 'Google Sheet অনুযায়ী আলাদা ভাগ';
+          } else if (excludedMembers.length > 0) {
+            noteText = `${splitCount} জনের ভাগ (${excludedMembers.join(', ')} বাদে)`;
+          } else {
+            noteText = `${splitCount} জনের সমান ভাগ`;
+          }
+          allStatusesPaid = false;
+        } else {
+          splitCount = perHeadAmt > 0
+            ? Math.max(1, Math.min(members.length, Math.round(totalAmt / perHeadAmt)))
+            : members.length;
+
+          if (splitCount < members.length) {
+            members.forEach(m => {
+              if (excludedMembers.length < (members.length - splitCount)) {
+                if ((memberMealTotals[m] || 0) === 0 && (parsedDeposits[m] || 0) === 0 && membersNeverPaidAnyBill.has(m)) {
+                  excludedMembers.push(m);
+                }
               }
+            });
+            if (isBua && members.includes('Imam') && !excludedMembers.includes('Imam') && excludedMembers.length < (members.length - splitCount)) {
+              excludedMembers.push('Imam');
+            }
+            statusCols.forEach(sc => {
+              if (excludedMembers.length < (members.length - splitCount)) {
+                const cellVal = String(row[sc.colIndex] || '').trim().toLowerCase();
+                if (!cellVal && !excludedMembers.includes(sc.memberName)) {
+                  excludedMembers.push(sc.memberName);
+                }
+              }
+            });
+          }
+
+          const activeIncludedCount = members.length - excludedMembers.length;
+          noteText = excludedMembers.length > 0
+            ? `${activeIncludedCount} জনের ভাগ (${excludedMembers.join(', ')} বাদে)`
+            : `${splitCount} জনের সমান ভাগ`;
+
+          statusCols.forEach(sc => {
+            if (excludedMembers.includes(sc.memberName)) return;
+            const cellVal = String(row[sc.colIndex] || '').trim().toLowerCase();
+            billTracker[sc.memberName].applicable++;
+            if (cellVal === 'paid') {
+              billTracker[sc.memberName].paid++;
+            } else {
+              allStatusesPaid = false;
             }
           });
         }
@@ -4525,24 +4588,7 @@ function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
         else if (lowerTitle === 'wifi') friendlyTitle = 'Wifi Bill (ইন্টারনেট)';
         else if (lowerTitle === 'bua') friendlyTitle = 'Bua Bill (খালা বিল)';
 
-        const activeIncludedCount = members.length - excludedMembers.length;
-        const noteText = excludedMembers.length > 0
-          ? `${activeIncludedCount} জনের ভাগ (${excludedMembers.join(', ')} বাদে)`
-          : `${splitCount} জনের সমান ভাগ`;
-
-        let allStatusesPaid = statusCols.length > 0;
-        statusCols.forEach(sc => {
-          if (excludedMembers.includes(sc.memberName)) return;
-          const cellVal = String(row[sc.colIndex] || '').trim().toLowerCase();
-          billTracker[sc.memberName].applicable++;
-          if (cellVal === 'paid') {
-            billTracker[sc.memberName].paid++;
-          } else {
-            allStatusesPaid = false;
-          }
-        });
-
-        parsedFixedBills.push({
+        const billObj = {
           id: 100 + idx,
           title: friendlyTitle,
           amount: totalAmt,
@@ -4550,7 +4596,11 @@ function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
           excludedMembers,
           status: allStatusesPaid ? 'Paid' : 'Pending',
           note: noteText
-        });
+        };
+        if (customShares) {
+          billObj.customShares = customShares;
+        }
+        parsedFixedBills.push(billObj);
       });
     }
 
