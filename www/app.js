@@ -3839,7 +3839,7 @@ window.forceAppReload = function() {
 
 // Auto update on new build
 (function checkAppBuild() {
-  const LATEST_BUILD = '2026-11-12-v31';
+  const LATEST_BUILD = '2026-11-12-v32';
   const current = localStorage.getItem('meal_tracker_build');
   if (current !== LATEST_BUILD) {
     localStorage.setItem('meal_tracker_build', LATEST_BUILD);
@@ -4501,6 +4501,41 @@ function parseGoogleSheetCsv(csvText, monthId, monthLabelForDate) {
         if (totalAmt <= 0 && numericCellsSum > 0) totalAmt = numericCellsSum;
         if (totalAmt <= 0) continue;
         rawBillRows.push({ row, bName, totalAmt, perHeadAmt });
+      }
+
+      // Fallback when gviz CSV omits member headers on the "Item" row (e.g. merged/styled headers in Google Sheet)
+      if (statusCols.length === 0 && rawBillRows.length > 0 && members.length > 0) {
+        const startCol = depositNameCol + 3;
+        const maxCols = Math.min(members.length, Math.max(0, (rows[billHeaderRowIdx] || []).length - startCol));
+        const buaRowObj = rawBillRows.find(rb => {
+          const t = rb.bName.toLowerCase();
+          return t.includes('bua') || t.includes('বুয়া') || t.includes('খালা') || t.includes('cook');
+        });
+        let blankBuaColOffset = -1;
+        if (buaRowObj && members.includes('Imam')) {
+          for (let i = 0; i < maxCols; i++) {
+            const cellVal = String(buaRowObj.row[startCol + i] || '').trim();
+            if (!cellVal) {
+              blankBuaColOffset = i;
+              break;
+            }
+          }
+        }
+        const orderedNames = [...members];
+        if (blankBuaColOffset >= 0 && blankBuaColOffset < orderedNames.length) {
+          const imamIdx = orderedNames.indexOf('Imam');
+          if (imamIdx !== -1 && imamIdx !== blankBuaColOffset) {
+            orderedNames.splice(imamIdx, 1);
+            orderedNames.splice(blankBuaColOffset, 0, 'Imam');
+          }
+        }
+        for (let i = 0; i < maxCols; i++) {
+          const mName = orderedNames[i];
+          if (mName) {
+            statusCols.push({ colIndex: startCol + i, memberName: mName });
+            billTracker[mName] = { applicable: 0, paid: 0 };
+          }
+        }
       }
 
       const membersNeverPaidAnyBill = new Set(
